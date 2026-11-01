@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -49,6 +50,7 @@ import app.passstudio.R
 import app.passstudio.data.Catalog
 import app.passstudio.data.LookMode
 import app.passstudio.data.Pass
+import app.passstudio.data.PassTheme
 import app.passstudio.data.Seasons
 import app.passstudio.data.Store
 import app.passstudio.wallet.KeyVault
@@ -96,7 +98,7 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item {
-                TodayCard(occasion.label, occasion.days, todayTheme.name, Catalog.artRes(todayTheme.art), todayTheme.color, onSchedule)
+                TodayCard(occasion.label, occasion.days, todayTheme, onSchedule)
             }
             if (!ready) item { SetupCard(onSettings) }
             if (d.passes.isEmpty()) {
@@ -125,23 +127,15 @@ fun statusOf(p: Pass, themeName: String): String {
 }
 
 @Composable
-private fun TodayCard(occasion: String, days: String, themeName: String, art: Int, color: String, onSchedule: () -> Unit) {
-    val bg = parseHex(color) ?: Color(0xFF1A1A1A)
-    val ink = inkOn(bg)
-    Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(bg).clickable(onClick = onSchedule).padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("TODAY", color = ink.copy(alpha = 0.75f), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+private fun TodayCard(occasion: String, days: String, theme: PassTheme, onSchedule: () -> Unit) {
+    ThemedCard(theme, onSchedule, Modifier.heightIn(min = 172.dp)) { ink ->
+        Column(Modifier.fillMaxWidth(0.62f).padding(18.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("TODAY", color = ink.copy(alpha = 0.8f), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
             Text(occasion, color = ink, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            Text("$days · $themeName theme", color = ink.copy(alpha = 0.85f), style = MaterialTheme.typography.bodySmall)
+            Text("$days · ${theme.name} theme", color = ink.copy(alpha = 0.9f), style = MaterialTheme.typography.bodySmall)
             Spacer(Modifier.height(4.dp))
-            Text("Passes on auto switch by themselves", color = ink.copy(alpha = 0.85f), style = MaterialTheme.typography.bodySmall)
+            Text("Passes on auto switch by themselves", color = ink.copy(alpha = 0.9f), style = MaterialTheme.typography.bodySmall)
         }
-        Spacer(Modifier.width(10.dp))
-        Image(painterResource(art), contentDescription = null, contentScale = ContentScale.Fit,
-            modifier = Modifier.width(140.dp).aspectRatio(1032f / 812f))
     }
 }
 
