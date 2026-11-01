@@ -83,7 +83,14 @@ object Jwt {
 object Http {
     class Response(val code: Int, val body: String)
 
-    fun request(method: String, url: String, body: String? = null, contentType: String? = null, bearer: String? = null): Response {
+    fun request(
+        method: String,
+        url: String,
+        body: String? = null,
+        contentType: String? = null,
+        bearer: String? = null,
+        headers: Map<String, String> = emptyMap(),
+    ): Response {
         val c = URL(url).openConnection() as HttpURLConnection
         try {
             c.requestMethod = method
@@ -91,6 +98,7 @@ object Http {
             c.readTimeout = 20_000
             c.setRequestProperty("Accept", "application/json")
             if (bearer != null) c.setRequestProperty("Authorization", "Bearer $bearer")
+            headers.forEach { (k, v) -> c.setRequestProperty(k, v) }
             if (body != null) {
                 c.doOutput = true
                 c.setRequestProperty("Content-Type", contentType ?: "application/json; charset=utf-8")
@@ -101,7 +109,7 @@ object Http {
             val text = stream?.bufferedReader()?.use { it.readText() } ?: ""
             return Response(code, text)
         } catch (e: java.io.IOException) {
-            throw WalletException("Couldn't reach Google. Check your connection and try again.")
+            throw WalletException("Couldn't connect. Check your internet connection and try again.")
         } finally {
             c.disconnect()
         }

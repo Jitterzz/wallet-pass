@@ -11,12 +11,15 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 /**
- * Keeps the Google service account key on the phone, encrypted with a key from Android's keystore, which never
- * leaves the phone. The file is excluded from backups (see the manifest).
+ * Keeps secrets on the phone (the Google service account key, the GitHub token for logo uploads), encrypted with a
+ * key from Android's keystore, which never leaves the phone. The files are excluded from backups (see the manifest).
  */
 object KeyVault {
     private const val ALIAS = "pass_studio_google_key"
     private const val FILE = "google_key.bin"
+
+    /** The GitHub token used to upload logos. */
+    const val GITHUB_TOKEN = "github_token.bin"
 
     private fun secretKey(): SecretKey {
         val ks = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
@@ -32,20 +35,20 @@ object KeyVault {
         return gen.generateKey()
     }
 
-    private fun file(context: Context) = File(context.applicationContext.filesDir, FILE)
+    private fun file(context: Context, name: String) = File(context.applicationContext.filesDir, name)
 
-    fun has(context: Context): Boolean = file(context).exists()
+    fun has(context: Context, name: String = FILE): Boolean = file(context, name).exists()
 
-    fun save(context: Context, text: String) {
+    fun save(context: Context, text: String, name: String = FILE) {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, secretKey())
         val iv = cipher.iv
         val sealed = cipher.doFinal(text.toByteArray(Charsets.UTF_8))
-        file(context).writeBytes(byteArrayOf(iv.size.toByte()) + iv + sealed)
+        file(context, name).writeBytes(byteArrayOf(iv.size.toByte()) + iv + sealed)
     }
 
-    fun load(context: Context): String? {
-        val f = file(context)
+    fun load(context: Context, name: String = FILE): String? {
+        val f = file(context, name)
         if (!f.exists()) return null
         return runCatching {
             val bytes = f.readBytes()
@@ -58,7 +61,7 @@ object KeyVault {
         }.getOrNull()
     }
 
-    fun clear(context: Context) {
-        file(context).delete()
+    fun clear(context: Context, name: String = FILE) {
+        file(context, name).delete()
     }
 }

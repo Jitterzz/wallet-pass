@@ -7,6 +7,9 @@ object Catalog {
     /** Where Google Wallet loads each theme's art from: the art/ folder of the public GitHub repo. */
     const val DEFAULT_ART_BASE = "https://raw.githubusercontent.com/Jitterzz/wallet-pass/main/art/"
 
+    /** The public repo picked logos are uploaded to (its logos/ folder). */
+    const val DEFAULT_GITHUB_REPO = "Jitterzz/wallet-pass"
+
     data class Group(val name: String, val ids: List<String>)
 
     val themes: List<PassTheme> = listOf(

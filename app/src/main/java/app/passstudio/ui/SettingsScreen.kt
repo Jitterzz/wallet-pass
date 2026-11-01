@@ -39,12 +39,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import app.passstudio.BuildConfig
 import app.passstudio.data.Catalog
 import app.passstudio.data.Store
 import app.passstudio.wallet.GoogleAuth
 import app.passstudio.wallet.KeyVault
+import app.passstudio.wallet.LogoUpload
 import app.passstudio.wallet.ServiceAccount
 import app.passstudio.wallet.Sync
 import app.passstudio.wallet.WalletApi
@@ -62,6 +64,9 @@ fun SettingsScreen(onBack: () -> Unit) {
     var issuer by remember { mutableStateOf(d.settings.issuerId) }
     var artBase by remember { mutableStateOf(d.settings.artBase) }
     var keyEmail by remember { mutableStateOf(ServiceAccount.load(context)?.clientEmail) }
+    var githubRepo by remember { mutableStateOf(d.settings.githubRepo) }
+    var githubToken by remember { mutableStateOf("") }
+    var hasGithubToken by remember { mutableStateOf(LogoUpload.hasToken(context)) }
     var message by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
 
@@ -78,6 +83,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             it.copy(settings = it.settings.copy(
                 issuerId = issuer.trim(),
                 artBase = artBase.trim().ifBlank { Catalog.DEFAULT_ART_BASE },
+                githubRepo = githubRepo.trim().trim('/').ifBlank { Catalog.DEFAULT_GITHUB_REPO },
             ))
         }
     }
@@ -182,6 +188,64 @@ fun SettingsScreen(onBack: () -> Unit) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+
+            SectionTitle("Logo uploads (GitHub)")
+            Panel {
+                Text(
+                    "Logos you pick are uploaded to the logos folder of this repo, which has to be public so Google Wallet " +
+                        "can load them. Make a fine-grained token on GitHub (Settings > Developer settings > Personal access " +
+                        "tokens > Fine-grained tokens) for only this repo, with Contents: Read and write.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedTextField(
+                    value = githubRepo,
+                    onValueChange = { githubRepo = it.trim() },
+                    label = { Text("Repo") },
+                    supportingText = { Text("Like Jitterzz/wallet-pass") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (hasGithubToken) {
+                    Text("Token added", style = MaterialTheme.typography.bodyMedium)
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        FilledTonalButton(enabled = !busy, onClick = {
+                            saveFields()
+                            busy = true
+                            scope.launch {
+                                val result = withContext(Dispatchers.IO) {
+                                    runCatching { LogoUpload.check(context.applicationContext, Store.data.value.settings) }
+                                }
+                                busy = false
+                                message = result.fold(onSuccess = { it }, onFailure = { it.message ?: "Couldn't reach GitHub." })
+                            }
+                        }) { Text("Check GitHub") }
+                        TextButton(onClick = {
+                            KeyVault.clear(context, KeyVault.GITHUB_TOKEN)
+                            hasGithubToken = false
+                            message = "GitHub token removed from this phone."
+                        }) { Text("Remove token") }
+                    }
+                } else {
+                    OutlinedTextField(
+                        value = githubToken,
+                        onValueChange = { githubToken = it.trim() },
+                        label = { Text("GitHub token") },
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    FilledTonalButton(enabled = githubToken.isNotBlank(), onClick = {
+                        runCatching { KeyVault.save(context, githubToken, KeyVault.GITHUB_TOKEN) }
+                            .onSuccess {
+                                githubToken = ""
+                                hasGithubToken = true
+                                message = "Token saved. Tap Check GitHub to test it."
+                            }
+                            .onFailure { message = "Couldn't keep the token on this phone." }
+                    }) { Text("Save token") }
+                }
             }
 
             SectionTitle("Automatic updates")

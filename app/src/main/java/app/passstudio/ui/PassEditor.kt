@@ -3,7 +3,12 @@ package app.passstudio.ui
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -72,9 +77,11 @@ import app.passstudio.data.Pass
 import app.passstudio.data.PassLink
 import app.passstudio.data.Seasons
 import app.passstudio.data.Store
+import app.passstudio.wallet.LogoUpload
 import app.passstudio.wallet.ServiceAccount
 import app.passstudio.wallet.Sync
 import app.passstudio.wallet.WalletApi
+import app.passstudio.wallet.WalletException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -105,6 +112,42 @@ fun PassEditor(passId: String, onBack: () -> Unit, onSettings: () -> Unit, onSch
     var message by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var uploading by remember { mutableStateOf<LogoUpload.Kind?>(null) }
+    var pickFor by remember { mutableStateOf<LogoUpload.Kind?>(null) }
+
+    // Picking a logo: it's sized for Google Wallet, uploaded to the repo's logos/ folder, and its link filled in.
+    val logoPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        val kind = pickFor
+        pickFor = null
+        if (uri != null && kind != null) {
+            uploading = kind
+            scope.launch {
+                val result = withContext(Dispatchers.IO) {
+                    runCatching {
+                        val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                            ?: throw WalletException("Couldn't open that file.")
+                        val png = LogoUpload.prepare(bytes, kind)
+                        val name = "${passId}-${kind.label}-${System.currentTimeMillis()}.png"
+                        LogoUpload.upload(context.applicationContext, Store.data.value.settings, png, name)
+                    }
+                }
+                uploading = null
+                result.onSuccess { url ->
+                    draft = if (kind == LogoUpload.Kind.WIDE) draft.copy(wideLogoUrl = url) else draft.copy(logoUrl = url)
+                    message = "Logo uploaded."
+                }.onFailure { message = it.message ?: "Couldn't upload the logo." }
+            }
+        }
+    }
+
+    fun pickLogo(kind: LogoUpload.Kind) {
+        if (!LogoUpload.hasToken(context)) {
+            message = "Add your GitHub token in Settings to upload logos."
+            return
+        }
+        pickFor = kind
+        logoPicker.launch(arrayOf("image/png"))
+    }
 
     LaunchedEffect(message) {
         val m = message
@@ -186,6 +229,8 @@ fun PassEditor(passId: String, onBack: () -> Unit, onSettings: () -> Unit, onSch
     BackHandler { leave() }
 
     val theme = Store.themeFor(draft, d)
+    // Logo previews sit on the pass's own color, so a white logo shows up.
+    val passColor = parseHex(theme.color) ?: Color(0xFF1A1A1A)
     val wallet = stored ?: draft
 
     Scaffold(
@@ -296,14 +341,17 @@ fun PassEditor(passId: String, onBack: () -> Unit, onSettings: () -> Unit, onSch
             SectionTitle("Logo")
             Panel {
                 Text(
-                    "A transparent PNG at the top of the pass, by link. Google Wallet loads it from there, so the link has to " +
-                        "be public (https). Only use a logo you have the right to use.",
+                    "A transparent PNG at the top of the pass. Pick one from your phone and it's uploaded to your GitHub " +
+                        "repo's logos folder (Google Wallet only loads pictures from a public link), or paste a link. Only " +
+                        "use a logo you have the right to use.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                LogoField("Top logo (wide)", draft.wideLogoUrl, "Best at 1280 × 400, light on dark colors") {
+                LogoField("Top logo (wide)", draft.wideLogoUrl, "Best at 1280 × 400, light on dark colors",
+                    uploading = uploading == LogoUpload.Kind.WIDE, background = passColor, onPick = { pickLogo(LogoUpload.Kind.WIDE) }) {
                     draft = draft.copy(wideLogoUrl = it.trim())
                 }
-                LogoField("Round logo", draft.logoUrl, "Square, at least 660 × 660; shown in a circle") {
+                LogoField("Round logo", draft.logoUrl, "Square, at least 660 × 660; shown in a circle",
+                    uploading = uploading == LogoUpload.Kind.ROUND, background = passColor, onPick = { pickLogo(LogoUpload.Kind.ROUND) }) {
                     draft = draft.copy(logoUrl = it.trim())
                 }
             }
@@ -435,17 +483,38 @@ private fun Field(
 }
 
 @Composable
-private fun LogoField(label: String, value: String, hint: String, onChange: (String) -> Unit) {
+private fun LogoField(
+    label: String,
+    value: String,
+    hint: String,
+    uploading: Boolean,
+    background: Color,
+    onPick: () -> Unit,
+    onChange: (String) -> Unit,
+) {
     val image = rememberUrlImage(value)
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Field(label, value, hint, KeyboardType.Uri, onChange)
+        Text(label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            FilledTonalButton(onClick = onPick, enabled = !uploading) {
+                Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(if (value.isBlank()) "Pick PNG" else "Change PNG")
+            }
+            if (uploading) {
+                CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                Text("Uploading…", style = MaterialTheme.typography.bodySmall)
+            } else if (value.isNotBlank()) {
+                TextButton(onClick = { onChange("") }) { Text("Remove") }
+            }
+        }
         when {
             value.isBlank() -> Unit
             !value.trim().startsWith("https://") -> Text("Use an https:// link.", color = Color(0xFFB3261E),
                 style = MaterialTheme.typography.bodySmall)
             image != null -> Box(
-                Modifier.fillMaxWidth().height(64.dp)
-                    .padding(4.dp),
+                Modifier.fillMaxWidth().height(72.dp).clip(RoundedCornerShape(12.dp))
+                    .background(background).padding(8.dp),
                 contentAlignment = Alignment.CenterStart,
             ) {
                 Image(bitmap = image, contentDescription = label, contentScale = ContentScale.Fit, modifier = Modifier.height(56.dp))
@@ -453,6 +522,7 @@ private fun LogoField(label: String, value: String, hint: String, onChange: (Str
             else -> Text("Loading the picture… (if it never shows, check the link)",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        Field("Or paste a link", value, hint, KeyboardType.Uri, onChange)
     }
 }
 

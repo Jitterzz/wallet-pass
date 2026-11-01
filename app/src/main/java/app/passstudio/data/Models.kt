@@ -58,6 +58,9 @@ data class ScheduleEntry(val themeId: String, val on: Boolean = true)
 data class Settings(
     val issuerId: String = "",
     val artBase: String = Catalog.DEFAULT_ART_BASE,
+    /** Where picked logos get uploaded ("owner/repo"), so Google Wallet can load them from a public link. */
+    val githubRepo: String = Catalog.DEFAULT_GITHUB_REPO,
+    val githubBranch: String = "main",
 )
 
 data class AppData(
@@ -79,7 +82,8 @@ object DataJson {
         o.put("schedule", JSONObject().apply {
             d.schedule.forEach { (k, v) -> put(k.name, JSONObject().put("themeId", v.themeId).put("on", v.on)) }
         })
-        o.put("settings", JSONObject().put("issuerId", d.settings.issuerId).put("artBase", d.settings.artBase))
+        o.put("settings", JSONObject().put("issuerId", d.settings.issuerId).put("artBase", d.settings.artBase)
+            .put("githubRepo", d.settings.githubRepo).put("githubBranch", d.settings.githubBranch))
         return o.toString()
     }
 
@@ -101,6 +105,9 @@ object DataJson {
             issuerId = st?.optString("issuerId", "") ?: "",
             artBase = st?.optString("artBase", Catalog.DEFAULT_ART_BASE)?.ifBlank { Catalog.DEFAULT_ART_BASE }
                 ?: Catalog.DEFAULT_ART_BASE,
+            githubRepo = st?.optString("githubRepo", Catalog.DEFAULT_GITHUB_REPO)?.ifBlank { Catalog.DEFAULT_GITHUB_REPO }
+                ?: Catalog.DEFAULT_GITHUB_REPO,
+            githubBranch = st?.optString("githubBranch", "main")?.ifBlank { "main" } ?: "main",
         )
         return AppData(passes, themes, schedule, settings)
     }

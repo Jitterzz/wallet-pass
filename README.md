@@ -8,7 +8,8 @@ their own for the seasons and holidays.
 - **Seasons & holidays:** passes set to change on their own switch themes in Google Wallet as the year goes by.
   Pick which theme each holiday and season gets, or turn holidays off.
 - **Details and links:** a Member ID line, extra lines, a Nearby locations link (Google Maps) and website links.
-- **Logos:** a wide transparent PNG at the top of the pass, or a round logo, by public https link.
+- **Logos:** a wide transparent PNG at the top of the pass, or a round logo. Pick a PNG on the phone and it's
+  sized for Google Wallet and uploaded to this repo's [`logos/`](logos) folder, or paste any public https link.
 
 ## How it works
 
@@ -29,6 +30,13 @@ in the app has the link if you'd rather host the art somewhere else.)
 3. Back in the Wallet console, **Users** > Invite a user > the service account's email (`client_email` in the file)
    as a **Developer**.
 4. In the app: **Settings** > type the Issuer ID, **Add key file** (pick the JSON), then **Check connection**.
+
+## Logo uploads
+
+Google Wallet only loads pictures from public links, so picked logos go to this repo's `logos/` folder. On GitHub,
+make a fine-grained personal access token (Settings > Developer settings > Personal access tokens > Fine-grained
+tokens) for only this repo, with **Contents: Read and write**. In the app: **Settings** > Logo uploads > paste it >
+**Save token** > **Check GitHub**. Uploads don't start a new APK build.
 
 ## Building
 

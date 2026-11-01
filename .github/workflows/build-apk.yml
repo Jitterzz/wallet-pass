@@ -1,6 +1,7 @@
 # Builds Pass Studio on GitHub and publishes the APK on the repo's Releases page.
 #
-# Runs on every push to main (except README/docs) and on demand: Actions tab > Build APK > Run workflow.
+# Runs on every push to main (except docs, uploaded logos and the hosted art) and on demand:
+# Actions tab > Build APK > Run workflow.
 #
 # Signing: add four repository secrets (Settings > Secrets and variables > Actions):
 #   KEYSTORE_BASE64    the release keystore (.p12), base64 on one line
@@ -17,6 +18,8 @@ on:
     branches: [main]
     paths-ignore:
       - "**.md"
+      - "logos/**"   # logos uploaded from the app don't need a new build
+      - "art/**"     # the art Google Wallet loads (the app has its own copy)
   workflow_dispatch:
 
 permissions:
