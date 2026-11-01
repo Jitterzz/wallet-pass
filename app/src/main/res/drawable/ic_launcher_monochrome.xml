@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The themed (one-color) app icon: the pass outline, its hills and barcode. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M38,28H70A8,8 0 0,1 78,36V74A8,8 0 0,1 70,82H38A8,8 0 0,1 30,74V36A8,8 0 0,1 38,28ZM38,32A4,4 0 0,0 34,36V74A4,4 0 0,0 38,78H70A4,4 0 0,0 74,74V36A4,4 0 0,0 70,32Z"
+        android:fillColor="#FFFFFFFF" />
+    <path
+        android:pathData="M60,41a6,6 0 1,0 12,0a6,6 0 1,0 -12,0zM34,52C42,46 50,47 56,50C62,53 68,49 74,48V55H34Z"
+        android:fillColor="#FFFFFFFF" />
+    <path
+        android:pathData="M38,61h2v12h-2zM42,61h1v12h-1zM45,61h3v12h-3zM50,61h1v12h-1zM53,61h2v12h-2zM57,61h1v12h-1zM60,61h3v12h-3zM65,61h1v12h-1zM68,61h2v12h-2z"
+        android:fillColor="#FFFFFFFF" />
+</vector>

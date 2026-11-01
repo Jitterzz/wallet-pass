@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pass Studio: a pass with a little landscape on it and a barcode. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- The pass. -->
+    <path
+        android:pathData="M38,28H70A8,8 0 0,1 78,36V74A8,8 0 0,1 70,82H38A8,8 0 0,1 30,74V36A8,8 0 0,1 38,28Z"
+        android:fillColor="#FFFFFFFF" />
+    <!-- Sky. -->
+    <path
+        android:pathData="M38,28H70A8,8 0 0,1 78,36V55H30V36A8,8 0 0,1 38,28Z"
+        android:fillColor="#FF7C5CFF" />
+    <!-- Sun. -->
+    <path
+        android:pathData="M60,41a6,6 0 1,0 12,0a6,6 0 1,0 -12,0z"
+        android:fillColor="#FFFFD166" />
+    <!-- Hills. -->
+    <path
+        android:pathData="M30,50C38,44 46,45 54,49C61,52 69,47 78,46V55H30Z"
+        android:fillColor="#FF2EC4B6" />
+    <path
+        android:pathData="M30,53C40,49 50,52 58,53C66,54 72,51 78,51V55H30Z"
+        android:fillColor="#FF1A9E92" />
+    <!-- Barcode. -->
+    <path
+        android:pathData="M37,61h2v13h-2zM41,61h1v13h-1zM44,61h3v13h-3zM49,61h1v13h-1zM52,61h2v13h-2zM56,61h1v13h-1zM59,61h3v13h-3zM64,61h1v13h-1zM67,61h2v13h-2zM71,61h1v13h-1z"
+        android:fillColor="#FF221B3F" />
+</vector>
