@@ -127,9 +127,15 @@ fun ThemeEditor(themeId: String?, startFrom: PassTheme?, onBack: () -> Unit) {
         )
     }
     var hex by remember(themeId) { mutableStateOf(theme.color) }
+    // How it was when the screen opened: a new theme left untouched isn't saved.
+    val original = remember(themeId) { theme }
     var confirmDelete by remember { mutableStateOf(false) }
 
     fun save() {
+        if (existing == null && theme == original) {
+            onBack()
+            return
+        }
         val name = theme.name.trim().ifBlank { "My theme" }
         Store.putTheme(theme.copy(name = name))
         // Passes showing this theme get the new look in Google Wallet.

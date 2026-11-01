@@ -214,7 +214,9 @@ fun rememberUrlImage(url: String): ImageBitmap? {
     val link = url.trim()
     val cached: ImageBitmap? = if (link.isEmpty()) null else imageCache.get(link)
     val image by produceState(cached, link) {
-        if (link.startsWith("https://") && value == null) {
+        // A new link starts from its own picture (or none), not the one the last link showed.
+        value = cached
+        if (value == null && link.startsWith("https://")) {
             val loaded = withContext(Dispatchers.IO) {
                 runCatching {
                     val c = URL(link).openConnection() as HttpURLConnection
