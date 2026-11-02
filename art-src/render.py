@@ -24,6 +24,9 @@ class Front:
 
 
 themes.Front = Front
+for _name, _mod in list(sys.modules.items()):
+    if _name.startswith("themes_"):
+        _mod.Front = Front
 
 
 def render(key, out_dir):
@@ -34,10 +37,12 @@ def render(key, out_dir):
     sky.n = 10000                        # keep its gradient ids apart from the band's
     sky.front = []
     t["deco"](sky)
+    # The band is clipped at its sides and bottom only, so glows, leaves and clouds near its top carry on up into
+    # the sky instead of stopping in a straight line.
     stops = "".join(f'<stop offset="{o}" stop-color="{c}"/>' for o, c in t["sky"])
     svg = (f'<svg xmlns="http://www.w3.org/2000/svg" width="{TALL_W}" height="{TALL_H}" viewBox="0 0 {TALL_W} {TALL_H}">'
            f'<defs><linearGradient id="pagesky" x1="0" y1="0" x2="0" y2="{BAND_Y + 2}" gradientUnits="userSpaceOnUse">'
-           f'{stops}</linearGradient><clipPath id="band"><rect width="{SW}" height="{SH}"/></clipPath>'
+           f'{stops}</linearGradient><clipPath id="band"><rect y="-{BAND_Y}" width="{SW}" height="{SH + BAND_Y}"/></clipPath>'
            f'{"".join(sky.defs)}{"".join(band.defs)}</defs>'
            f'<rect width="{TALL_W}" height="{BAND_Y + 2}" fill="url(#pagesky)"/>'
            f'<g>{"".join(sky.body)}</g>'

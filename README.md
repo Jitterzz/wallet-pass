@@ -5,11 +5,13 @@ page and changes on its own for the seasons and holidays. No accounts or setup: 
 
 - **Passes:** scan a card's barcode (or type it), name the card, add your name and a logo.
 - **The pass page:** logo, card name, your name and the barcode, with the theme's art covering the whole page. The
-  screen goes to full brightness while it's up so the barcode scans, and it works with no signal. Scroll down for
-  the details (Member ID and other lines, Nearby locations on Google Maps, website links).
-- **Themes:** 23 built-in themes (holidays, seasons, everyday scenes), or make your own from any color and art.
-  They move on the pass page: snow and leaves fall, fireworks go off, candles flicker, chimneys smoke, bats and
-  birds fly by. (They hold still if that's turned off in Settings or the phone has animations off.)
+  screen goes to full brightness while it's up so the barcode scans, and it works with no signal. Tap the barcode to
+  show it by itself, as big as it fits, on plain white. Scroll down for the details (Member ID and other lines,
+  Nearby locations on Google Maps, website links).
+- **Themes:** 35 built-in themes (holidays, seasons, famous places like the Golden Gate Bridge, Paris and Mount Fuji,
+  just-for-fun scenes like a coral reef, a volcano and outer space, and everyday ones), or make your own from any
+  color and art. They move on the pass page: snow and leaves fall, fireworks go off, fog rolls in, boats and buses
+  go by, fish swim, rain falls. (They hold still if that's turned off in Settings or the phone has animations off.)
   Tap the palette on a pass to pick one, or leave it on **Automatic** to have it change with the seasons and
   holidays. Pick which theme each holiday and season gets, or turn holidays off.
 - **Logos:** pick a picture on the phone (a see-through PNG works best). It's trimmed, centered in the circle at the

@@ -30,6 +30,20 @@ object Catalog {
         PassTheme("city", "City Nights", "#060918", "city", true),
         PassTheme("farm", "Farm", "#ffcf8a", "farm", true),
         PassTheme("mountains", "Mountains", "#4f9ae6", "mountains", true),
+        // Places.
+        PassTheme("golden_gate", "Golden Gate", "#1c3563", "golden_gate", true),
+        PassTheme("paris", "Paris", "#070b22", "paris", true),
+        PassTheme("london", "London", "#1b2350", "london", true),
+        PassTheme("fuji", "Mount Fuji", "#3a5fa8", "fuji", true),
+        PassTheme("grand_canyon", "Grand Canyon", "#2a2457", "grand_canyon", true),
+        PassTheme("vegas", "Las Vegas", "#0a0620", "vegas", true),
+        PassTheme("cappadocia", "Cappadocia", "#3d6fb0", "cappadocia", true),
+        // Just for fun.
+        PassTheme("reef", "Coral Reef", "#1580b8", "reef", true),
+        PassTheme("space", "Outer Space", "#04030d", "space", true),
+        PassTheme("volcano", "Volcano", "#0b0507", "volcano", true),
+        PassTheme("retro", "Retro Sunset", "#0d0624", "retro", true),
+        PassTheme("rainy", "Rainy Night", "#0e1420", "rainy", true),
         // Simple.
         PassTheme("warehouse", "Warehouse", "#121212", "warehouse", true),
         PassTheme("shopping", "Shopping", "#7b35c9", "shopping", true),
@@ -37,10 +51,13 @@ object Catalog {
     )
 
     val groups: List<Group> = listOf(
+        Group("Places", listOf("golden_gate", "paris", "london", "fuji",
+            "grand_canyon", "vegas", "cappadocia")),
+        Group("Just for fun", listOf("reef", "space", "volcano", "retro", "rainy")),
+        Group("Everyday", listOf("aurora", "ocean", "desert", "city", "farm", "mountains")),
         Group("Holidays", listOf("halloween", "dia_de_muertos", "thanksgiving", "christmas", "new_year", "valentines",
             "st_patricks", "easter", "cinco_de_mayo", "july_4")),
         Group("Seasons", listOf("spring", "summer", "fall", "winter")),
-        Group("Everyday", listOf("aurora", "ocean", "desert", "city", "farm", "mountains")),
         Group("Simple", listOf("warehouse", "shopping", "horizon")),
     )
 
@@ -73,6 +90,18 @@ object Catalog {
         "warehouse" -> R.drawable.art_warehouse
         "shopping" -> R.drawable.art_shopping
         "horizon" -> R.drawable.art_horizon
+        "golden_gate" -> R.drawable.art_golden_gate
+        "paris" -> R.drawable.art_paris
+        "london" -> R.drawable.art_london
+        "fuji" -> R.drawable.art_fuji
+        "grand_canyon" -> R.drawable.art_grand_canyon
+        "vegas" -> R.drawable.art_vegas
+        "cappadocia" -> R.drawable.art_cappadocia
+        "reef" -> R.drawable.art_reef
+        "space" -> R.drawable.art_space
+        "volcano" -> R.drawable.art_volcano
+        "retro" -> R.drawable.art_retro
+        "rainy" -> R.drawable.art_rainy
         else -> R.drawable.art_aurora
     }
 
@@ -100,6 +129,18 @@ object Catalog {
         "warehouse" -> R.drawable.bg_warehouse
         "shopping" -> R.drawable.bg_shopping
         "horizon" -> R.drawable.bg_horizon
+        "golden_gate" -> R.drawable.bg_golden_gate
+        "paris" -> R.drawable.bg_paris
+        "london" -> R.drawable.bg_london
+        "fuji" -> R.drawable.bg_fuji
+        "grand_canyon" -> R.drawable.bg_grand_canyon
+        "vegas" -> R.drawable.bg_vegas
+        "cappadocia" -> R.drawable.bg_cappadocia
+        "reef" -> R.drawable.bg_reef
+        "space" -> R.drawable.bg_space
+        "volcano" -> R.drawable.bg_volcano
+        "retro" -> R.drawable.bg_retro
+        "rainy" -> R.drawable.bg_rainy
         else -> R.drawable.bg_aurora
     }
 

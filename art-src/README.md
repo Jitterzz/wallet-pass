@@ -3,7 +3,10 @@
 The scripts that draw Pass Studio's theme art. Each theme is one full-page picture (1032 x 2240): its sky runs down
 the page with decorations kept to the edges, clear of the pass, and its scene sits along the bottom.
 
-- `themes.py`: every theme's sky, decorations and scene
+- `themes.py`: every theme's sky, decorations and scene (holidays, seasons and the everyday ones)
+- `themes_day.py`, `themes_night.py`, `themes_fun.py`: the places (Golden Gate, Mount Fuji, Grand Canyon,
+  Cappadocia, Paris, London, Las Vegas) and the just-for-fun scenes (rainy night, coral reef, volcano, outer space,
+  retro sunset), loaded by `themes.py`
 - `props.py`, `base.py`, `scene_class.py.txt`: the things they're drawn from (houses, trees, pumpkins, fireworks...)
 - `render.py`: draws the pictures, and notes where the moving parts are (chimneys, flames, lights, water)
 - `export_app.py`: puts them in the app: `bg_*.webp` (the page), `art_*.webp` (cards and tiles) and `ThemeAnchors.kt`

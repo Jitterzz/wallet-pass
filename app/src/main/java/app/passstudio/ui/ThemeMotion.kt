@@ -42,8 +42,8 @@ import kotlin.math.sin
  * lines up with the picture. Each frame is just a function of the time, so nothing is kept between frames.
  */
 
-private const val ART_W = 1032f
-private const val ART_H = 2240f
+internal const val ART_W = 1032f
+internal const val ART_H = 2240f
 
 /** Where the page art lands on the screen: scaled to cover it, its bottom on the bottom (as the picture behind is). */
 class ArtMap(w: Float, h: Float) {
@@ -97,16 +97,16 @@ fun ThemeMotion(art: String, modifier: Modifier = Modifier) {
 // ---------- helpers ----------
 
 /** A steady pseudo-random number in [0, 1) for (a, b): the same every frame, so things keep their place. */
-private fun hash(a: Int, b: Int): Float {
+internal fun hash(a: Int, b: Int): Float {
     var h = a * 374761393 + b * 668265263
     h = (h xor (h ushr 13)) * 1274126177
     h = h xor (h ushr 16)
     return (h and 0x7fffffff) / 2147483648f
 }
 
-private fun frac(v: Float) = v - floor(v)
+internal fun frac(v: Float) = v - floor(v)
 
-private fun rgb(v: Float) = Color(0xFF000000L or v.toLong())
+internal fun rgb(v: Float) = Color(0xFF000000L or v.toLong())
 
 /** Where the pass sits on the page (logo, card name, name, barcode, number), so twinkles stay off it. */
 private val PASS = arrayOf(
@@ -130,7 +130,7 @@ private fun spots(n: Int, y0: Float, y1: Float, seed: Int, pad: Float = 24f): Li
     return out
 }
 
-private fun parse(d: String): Path = PathParser().parsePathString(d).toPath()
+internal fun parse(d: String): Path = PathParser().parsePathString(d).toPath()
 
 private val MAPLE: Path by lazy {
     parse("M0,-1 L0.12,-0.62 L0.3,-0.72 L0.27,-0.38 L0.62,-0.55 L0.56,-0.28 L0.95,-0.22 L0.72,-0.02 L0.82,0.12 L0.38,0.12 " +
@@ -141,7 +141,7 @@ private val HEART: Path by lazy {
     parse("M0,0.32 C-0.52,-0.05 -0.52,-0.32 -0.52,-0.32 C-0.52,-0.6 -0.24,-0.68 0,-0.44 C0.24,-0.68 0.52,-0.6 0.52,-0.32 " +
         "C0.52,-0.05 0,0.32 0,0.32Z")
 }
-private val SPARKLE: Path by lazy {
+internal val SPARKLE: Path by lazy {
     parse("M0,-1 Q0.22,-0.22 1,0 Q0.22,0.22 0,1 Q-0.22,0.22 -1,0 Q-0.22,-0.22 0,-1Z")
 }
 private val BAT: Path by lazy {
@@ -163,12 +163,12 @@ private val TUMBLEWEED: Path by lazy {
     parse(sb.toString())
 }
 
-private fun DrawScope.glow(c: Offset, r: Float, color: Color, alpha: Float) {
+internal fun DrawScope.glow(c: Offset, r: Float, color: Color, alpha: Float) {
     if (r <= 0f || alpha <= 0f) return
     drawCircle(Brush.radialGradient(listOf(color.copy(alpha = alpha.coerceIn(0f, 1f)), Color.Transparent), c, r), r, c)
 }
 
-private fun DrawScope.shape(path: Path, x: Float, y: Float, size: Float, rot: Float, color: Color, alpha: Float, sx: Float = 1f) {
+internal fun DrawScope.shape(path: Path, x: Float, y: Float, size: Float, rot: Float, color: Color, alpha: Float, sx: Float = 1f) {
     withTransform({
         translate(x, y)
         rotate(rot, Offset.Zero)
@@ -562,12 +562,13 @@ private fun butterflies(n: Int, x0: Float, x1: Float, y0: Float, y1: Float, colo
         }
     }
 
-/** An eagle circling slowly. */
-private fun soaring(cx: Float, cy: Float, color: Long) = Motion { d, t, m ->
-    val x = cx + 150f * cos(t * 0.22f)
-    val y = cy + 50f * sin(t * 0.22f)
-    val s = m.d(100f)
-    d.withTransform({ translate(m.x(x), m.y(y)); rotate(-sin(t * 0.22f) * 12f, Offset.Zero); scale(s / 140f, s / 140f, Offset.Zero) }) {
+/** An eagle (or condor) circling slowly around (cx, cy). */
+private fun soaring(cx: Float, cy: Float, color: Long, phase: Float = 0f, size: Float = 100f) = Motion { d, t, m ->
+    val a = t * 0.22f + phase
+    val x = cx + 150f * cos(a)
+    val y = cy + 50f * sin(a)
+    val s = m.d(size)
+    d.withTransform({ translate(m.x(x), m.y(y)); rotate(-sin(a) * 12f, Offset.Zero); scale(s / 140f, s / 140f, Offset.Zero) }) {
         drawPath(EAGLE, Color(color))
     }
 }
@@ -950,6 +951,164 @@ object Motions {
                 clouds(3, 300f, 560f, 20f, 0xFFE8F8EC, 65, 70f..120f),
                 flyers(Flyer.BIRD, 6, BAND + 80f, BAND + 320f, 70f, 42f, 0xFFD6F5DF, 49),
             )
+            // ----- places -----
+            "golden_gate" -> {
+                val shore = a("surf").let { if (it.size >= 3) it[1] else ART_H - 200f }
+                listOf(
+                    twinkle(14, SKY_TOP, 760f, 0xFFFFFFFF, 11f, 70),
+                    sunRays(a("sun"), 0xFFFFE2B8),
+                    pulse(a("sun"), 0xFFFFD8A0, 3.6f, 0.5f),
+                    clouds(2, 330f, 620f, 12f, 0xB3F6C9CF, 71, 80f..130f),
+                    shimmer(water(), shore - 12f, 34, 0xFFFFE0B8, 72),
+                    boat(a("lane"), 0, Boat.SHIP, 73, 26f, 870f),
+                    boat(a("lane"), 1, Boat.SAIL, 74, 20f, 870f),
+                    fog(a("fog"), 0xFFFFF4F0, 75),
+                    trafficPath(a("deck"), 76),
+                    blink(a("antenna")),
+                    surf(a("surf"), 0xFF9FC3D6),
+                    flyers(Flyer.BIRD, 6, BAND + 40f, BAND + 300f, 80f, 46f, 0xFFFFFFFF, 77),
+                )
+            }
+            "fuji" -> listOf(
+                sunRays(a("sun"), 0xFFFFF1D6),
+                pulse(a("sun"), 0xFFFFE6C8, 3.4f, 0.45f),
+                clouds(3, 300f, 620f, 18f, 0xE6FFFFFF, 80),
+                clouds(2, BAND + 180f, BAND + 330f, 24f, 0xBFFFFFFF, 81, 70f..120f),
+                train(a("rail"), 82, size = 1.25f),
+                flyers(Flyer.BIRD, 5, BAND + 40f, BAND + 260f, 70f, 40f, 0xFF3A3550, 83),
+                fall(Piece.PETAL, 70, 70f, 80f, 18f..30f, longArrayOf(0xFFFFC2D9, 0xFFFFB0CC, 0xFFFFD6E6, 0xFFFF9CBF), 84),
+            )
+            "grand_canyon" -> {
+                val condors = a("condor")
+                listOf(
+                    twinkle(16, SKY_TOP, 700f, 0xFFFFF1D6, 11f, 90),
+                    sunRays(a("sun"), 0xFFFFD9A0),
+                    pulse(a("sun"), 0xFFFFC880, 3.6f, 0.5f),
+                    clouds(2, 360f, 640f, 12f, 0x99F7B08A, 91, 90f..150f),
+                    shadows(a("shade"), 0xFF2A0F2A, 92),
+                    glints(a("glint"), 0xFFFFF1D0, 93),
+                    flyers(Flyer.BIRD, 4, BAND + 60f, BAND + 300f, 60f, 40f, 0xFF2A1A2A, 94),
+                ) + (0 until condors.size / 3).map { soaring(condors[it * 3], condors[it * 3 + 1], 0xFF1E1418, it * 2.6f, 84f) }
+            }
+            "cappadocia" -> listOf(
+                sunRays(a("sun"), 0xFFFFE6C0),
+                pulse(a("sun"), 0xFFFFD8A8, 3.6f, 0.5f),
+                clouds(2, 330f, 620f, 12f, 0xCCFFFFFF, 100),
+                flicker(a("window"), WARM, 2.6f, 0.55f, 0.6f),
+                burners(a("burner"), 102),
+                balloonsRise(a("rise"), 101, 7, 1.4f),
+                flyers(Flyer.BIRD, 4, BAND + 60f, BAND + 300f, 60f, 38f, 0xFF4A3A4A, 103),
+            )
+            "paris" -> {
+                val lane = a("lane").let { if (it.size >= 3) it[1] else ART_H - 120f }
+                listOf(
+                    twinkle(40, SKY_TOP, BAND + 200f, 0xFFFFFFFF, 13f, 110),
+                    beacon(a("beacon")),
+                    sparkle(a("sparkle"), 111),
+                    flicker(a("window"), WARM, 2.4f, 0.45f, 0.4f),
+                    shimmer(water(), lane + 60f, 30, 0xFFFFD27A, 112),
+                    boat(a("lane"), 0, Boat.TOUR, 113, 24f),
+                    flicker(a("lamp"), 0xFFFFD98A, 3f, 0.55f, 0.5f),
+                )
+            }
+            "london" -> {
+                val road = a("road")
+                val roadTop = if (road.size >= 6) min(road[1], road[4]) - 6f else ART_H
+                val lane = a("lane").let { if (it.size >= 3) it[1] else ART_H - 120f }
+                listOf(
+                    twinkle(16, SKY_TOP, 700f, 0xFFFFFFFF, 11f, 120),
+                    clouds(2, 330f, 620f, 12f, 0x99F4B6C8, 121, 90f..140f),
+                    eye(a("wheel"), roadTop),
+                    pulse(a("clock"), 0xFFFFF3C4, 2.2f, 0.6f, 1.2f),
+                    flicker(a("window"), WARM, 2.4f, 0.45f, 0.4f),
+                    vehicles(road, arrayOf(Vehicle.BUS, Vehicle.CAB, Vehicle.BUS, Vehicle.CAB), 122),
+                    shimmer(water(), lane + 60f, 30, 0xFFFFD6B0, 123),
+                    boat(a("lane"), 0, Boat.TOUR, 124, 22f),
+                    flicker(a("lamp"), 0xFFFFD98A, 3f, 0.55f, 0.5f),
+                    flyers(Flyer.BIRD, 5, BAND + 40f, BAND + 260f, 80f, 40f, 0xFFFFFFFF, 125),
+                )
+            }
+            "vegas" -> {
+                val road = a("road").let { if (it.size >= 3) it[1] else ART_H - 50f }
+                listOf(
+                    twinkle(20, SKY_TOP, 800f, 0xFFFFFFFF, 11f, 130),
+                    searchlights(a("search")),
+                    skyBeam(a("beam")),
+                    windowsOff(a("citywin")),
+                    neon(a("neon"), 131),
+                    bulbs(a("bulb"), 6f, 26f),
+                    blink(a("antenna")),
+                    shimmer(water(), road - 30f, 30, 0xFFFF9BD8, 133),
+                    fountains(a("fountain"), 132),
+                    trafficPath(a("road"), 134, 7, 0.06f),
+                )
+            }
+            // ----- just for fun -----
+            "rainy" -> {
+                val walk = a("walk")
+                val ground = if (walk.size >= 3) walk[1] else ART_H - 160f
+                listOf(
+                    lightning(arrayOf(floatArrayOf(40f, 300f, 240f, 760f), floatArrayOf(792f, 300f, 992f, 760f)), 140, 9f, 0.22f),
+                    flicker(a("window"), WARM, 1.5f, 0.35f, 0.5f),
+                    flicker(a("lamp"), 0xFFFFD98A, 3.2f, 0.6f, 0.6f),
+                    neon(a("neon"), 141, 34f),
+                    ripples(a("puddle"), 142),
+                    walker(walk, 143),
+                    splashes(40, ground - 10f, ART_H - 20f, 144),
+                    rain(150, 145),
+                )
+            }
+            "reef" -> {
+                val sand = a("sand").let { if (it.size >= 3) it[1] else ART_H - 260f }
+                listOf(
+                    lightRays(7, 0xFFE8FBFF, 150, sand),
+                    kelp(a("kelp"), 151),
+                    shimmer(sand, ART_H, 30, 0xFFE0FBFF, 152),
+                    jellyfish(3, 420f, BAND + 260f, 156),
+                    fish(3, BAND + 40f, BAND + 420f, 40f, longArrayOf(0xFFFFD23F, 0xFF4FC3F7, 0xFFFF8A65), 153, 46f, 7),
+                    fish(2, 330f, 620f, 34f, longArrayOf(0xFFB3E5FC, 0xFFFFE082), 154, 40f, 6),
+                    turtle(BAND + 100f, BAND + 340f, 155),
+                    bubbles(a("bubble"), 157),
+                )
+            }
+            "volcano" -> {
+                val p = a("plume")
+                val px = if (p.size >= 3) p[0] else 520f
+                val py = if (p.size >= 3) p[1] else BAND + 300f
+                val ps = if (p.size >= 3) p[2] else 120f
+                listOf(
+                    twinkle(24, SKY_TOP, 900f, 0xFFFFD6C8, 10f, 160),
+                    plume(p),
+                    lightning(arrayOf(floatArrayOf(px - 160f, py - ps * 4f, px + 200f, py - ps * 1.2f)), 161, 6f, 0f, 0xFFFFC8A0),
+                    lavaFlow(a("lava1"), 162),
+                    lavaFlow(a("lava2"), 163),
+                    lavaFlow(a("lava3"), 164),
+                    pulse(a("glow"), 0xFFFFB347, 1.6f, 0.6f, 2.2f),
+                    lavaFountain(a("crater"), 165),
+                    steam(a("steam"), 168),
+                    embers(a("crater"), 166, 46),
+                    shimmer(water(), ART_H, 24, 0xFFFF7A4A, 167),
+                )
+            }
+            "space" -> listOf(
+                twinkle(70, SKY_TOP, BAND + 300f, 0xFFFFFFFF, 12f, 170),
+                shootingStars(171, 300f, 1000f, 4.5f),
+                satellites(2, 380f, BAND + 160f, 172),
+                halo(a("earth"), 0xFF7FC8FF, 1.35f, 0.45f, 0.6f),
+                rocket(173),
+                blink(a("antenna")),
+                astronaut(a("astro")),
+            )
+            "retro" -> {
+                val horizon = a("horizon").let { if (it.size >= 3) it[1] else BAND + 430f }
+                listOf(
+                    twinkle(40, SKY_TOP, BAND + 200f, 0xFFFFFFFF, 12f, 180),
+                    shootingStars(181, 300f, 900f, 5.5f),
+                    sunStripes(a("sun"), a("sky"), horizon),
+                    halo(a("sun"), 0xFFFF5AA8, 1.45f, 0.5f, 0.9f),
+                    gridScroll(a("horizon"), 0xFFFF3DF0),
+                )
+            }
             else -> emptyList()
         }
     }

@@ -91,10 +91,16 @@ class Thanksgiving:
 
 
 def scatter(s, n, y0, y1, pad, draw, center=0.08):
-    """Calls draw(x, y) at up to n spots in the page's sky, near the edges and clear of the pass."""
+    """Calls draw(x, y) at up to n spots in the page's sky, near the edges and clear of the pass. Ones that would be cut
+    off by the top of the scene are left out (still drawn, into nothing, so the rest stay where they were)."""
     for _ in range(n):
         p = spot(s.r, y0, y1, pad, center)
-        if p:
+        if p and p[1] > BAND_Y - pad * 1.2:
+            kept = s.body
+            s.body = []
+            draw(*p)
+            s.body = kept
+        elif p:
             draw(*p)
 
 
@@ -1012,3 +1018,13 @@ class Horizon:
         hill(s, 760, 16, 0.5, 1.0, "#2a7a3e", "#216a33")
         for (x, y, sc) in ((300, 220, 1.4), (340, 240, 1.1), (380, 215, 1.2)):
             s.bird(x, y, sc, "#d6f5df", 0.7)
+
+
+# ======================= More themes, kept in their own files =======================
+# Places (landmarks by day and at sunset), city nights, and just-for-fun scenes. THEME_MODULES (comma-separated)
+# limits which of these load, for drawing one set at a time.
+import os as _os  # noqa: E402
+
+for _m in (_os.environ.get("THEME_MODULES") or "themes_day,themes_night,themes_fun").split(","):
+    if _m.strip():
+        __import__(_m.strip())

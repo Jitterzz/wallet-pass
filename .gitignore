@@ -15,3 +15,6 @@ keystore.properties
 *.jks
 *.keystore
 *service-account*.json
+
+# Python caches from the art scripts
+__pycache__/
