@@ -3,14 +3,13 @@
 # Runs on every push to main (except docs, uploaded logos and the hosted art) and on demand:
 # Actions tab > Build APK > Run workflow.
 #
-# Signing: add four repository secrets (Settings > Secrets and variables > Actions):
-#   KEYSTORE_BASE64    the release keystore (.p12), base64 on one line
-#   KEYSTORE_PASSWORD  its store password
-#   KEY_ALIAS          the key alias
-#   KEY_PASSWORD       the key password
-# (The same four values as Rounds work.) With them, every build is signed with the same key, so each new APK
-# installs over the last one and keeps your passes and Google key. Without them the build is debug-signed with
-# a key that changes every run, so you'd have to uninstall before installing the next one.
+# Signing: add one repository secret (Settings > Secrets and variables > Actions > New repository secret):
+#   KEYSTORE_PASSWORD  the password for signing/release.p12, Pass Studio's own signing key (it's locked with that
+#                      password, so the file is safe in the repo; keep the password private)
+# With it, every build is signed with the same key, so each new APK installs over the last one and keeps your
+# passes and Google key. (The four secrets KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS and KEY_PASSWORD still
+# work instead, for a different key.) Without it the build is debug-signed with a key that changes every run, so
+# you'd have to uninstall before installing the next one.
 name: Build APK
 
 on:
@@ -54,8 +53,8 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
+          mkdir -p keystore
           if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASSWORD" ]; then
-            mkdir -p keystore
             printf '%s' "$KEYSTORE_BASE64" | tr -d ' \r\n' | base64 -d > keystore/release.p12
             {
               printf 'storeFile=release.p12\n'
@@ -64,9 +63,24 @@ jobs:
               printf 'keyPassword=%s\n' "$KEY_PASSWORD"
             } > keystore/keystore.properties
             echo "signed=true" >> "$GITHUB_OUTPUT"
+          elif [ -n "$KEYSTORE_PASSWORD" ] && [ -f signing/release.p12 ]; then
+            # Pass Studio's own key, kept in the repo and opened with the KEYSTORE_PASSWORD secret.
+            cp signing/release.p12 keystore/release.p12
+            if keytool -list -storetype PKCS12 -keystore keystore/release.p12 -storepass "$KEYSTORE_PASSWORD" >/dev/null 2>&1; then
+              {
+                printf 'storeFile=release.p12\n'
+                printf 'storePassword=%s\n' "$KEYSTORE_PASSWORD"
+                printf 'keyAlias=passstudio\n'
+                printf 'keyPassword=%s\n' "$KEYSTORE_PASSWORD"
+              } > keystore/keystore.properties
+              echo "signed=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "signed=false" >> "$GITHUB_OUTPUT"
+              echo "::warning::KEYSTORE_PASSWORD doesn't open signing/release.p12. Check the secret. Building a debug-signed APK."
+            fi
           else
             echo "signed=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::No signing secrets found. Building a debug-signed APK that won't install over the previous one."
+            echo "::warning::No signing secret found. Building a debug-signed APK that won't install over the previous one."
           fi
 
       - name: Build the APK

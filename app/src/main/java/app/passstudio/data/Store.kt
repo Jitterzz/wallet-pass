@@ -84,4 +84,8 @@ object Store {
         }
 
     fun newId(): String = UUID.randomUUID().toString().replace("-", "").take(12)
+
+    /** The pass the quick settings tile and "open straight to my pass" show: the starred one, else the first. */
+    fun quickPass(d: AppData = data.value): Pass? =
+        d.passes.firstOrNull { it.id == d.settings.quickPassId } ?: d.passes.firstOrNull()
 }

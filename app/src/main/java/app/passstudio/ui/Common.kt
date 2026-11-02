@@ -1,6 +1,10 @@
 package app.passstudio.ui
 
 import android.graphics.BitmapFactory
+import androidx.compose.ui.platform.LocalContext
+import java.security.MessageDigest
+import java.io.File
+import android.content.Context
 import android.util.LruCache
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -208,9 +212,19 @@ fun ThemeTile(theme: PassTheme, selected: Boolean, onClick: () -> Unit, modifier
 
 private val imageCache = LruCache<String, ImageBitmap>(24)
 
-/** Loads a picture from an https link for the preview; null while loading or if it can't be loaded. */
+/** Where a link's picture is kept on the phone, so logos still show with no signal (in a store, say). */
+private fun savedLogo(context: Context, link: String): File {
+    val name = MessageDigest.getInstance("SHA-1").digest(link.toByteArray()).joinToString("") { "%02x".format(it) }
+    return File(File(context.applicationContext.filesDir, "logo_cache").apply { mkdirs() }, name)
+}
+
+/**
+ * Loads a picture from an https link: from memory, else from the copy kept on the phone, else from the internet
+ * (keeping a copy). Null while loading or if it can't be loaded.
+ */
 @Composable
 fun rememberUrlImage(url: String): ImageBitmap? {
+    val context = LocalContext.current
     val link = url.trim()
     val cached: ImageBitmap? = if (link.isEmpty()) null else imageCache.get(link)
     val image by produceState(cached, link) {
@@ -218,12 +232,17 @@ fun rememberUrlImage(url: String): ImageBitmap? {
         value = cached
         if (value == null && link.startsWith("https://")) {
             val loaded = withContext(Dispatchers.IO) {
-                runCatching {
+                val file = savedLogo(context, link)
+                val fromPhone = runCatching { if (file.exists()) BitmapFactory.decodeFile(file.path) else null }.getOrNull()
+                fromPhone?.asImageBitmap() ?: runCatching {
                     val c = URL(link).openConnection() as HttpURLConnection
                     c.connectTimeout = 10_000
                     c.readTimeout = 15_000
                     try {
-                        c.inputStream.use { BitmapFactory.decodeStream(it) }?.asImageBitmap()
+                        val bytes = c.inputStream.use { it.readBytes() }
+                        val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                        if (bmp != null) runCatching { file.writeBytes(bytes) }
+                        bmp?.asImageBitmap()
                     } finally {
                         c.disconnect()
                     }

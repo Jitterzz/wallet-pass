@@ -10,6 +10,12 @@ object Catalog {
     /** The public repo picked logos are uploaded to (its logos/ folder). */
     const val DEFAULT_GITHUB_REPO = "Jitterzz/wallet-pass"
 
+    /**
+     * Goes on the end of each art link. Google Wallet keeps its own copy of a picture by its link, so when the art in
+     * the repo changes, raising this gives every link a new address and Google loads the new picture.
+     */
+    const val ART_VERSION = 2
+
     data class Group(val name: String, val ids: List<String>)
 
     val themes: List<PassTheme> = listOf(
@@ -81,6 +87,39 @@ object Catalog {
         "horizon" -> R.drawable.art_horizon
         else -> R.drawable.art_aurora
     }
+
+    /**
+     * The full-page version of each art, for Pass Studio's own pass screen: the sky runs up behind the logo, name and
+     * barcode, and the scene sits along the bottom.
+     */
+    fun pageRes(key: String): Int = when (key) {
+        "halloween" -> R.drawable.bg_halloween
+        "dia_de_muertos" -> R.drawable.bg_dia_de_muertos
+        "thanksgiving" -> R.drawable.bg_thanksgiving
+        "christmas" -> R.drawable.bg_christmas
+        "new_year" -> R.drawable.bg_new_year
+        "valentines" -> R.drawable.bg_valentines
+        "st_patricks" -> R.drawable.bg_st_patricks
+        "easter" -> R.drawable.bg_easter
+        "cinco_de_mayo" -> R.drawable.bg_cinco_de_mayo
+        "july_4" -> R.drawable.bg_july_4
+        "spring" -> R.drawable.bg_spring
+        "summer" -> R.drawable.bg_summer
+        "fall" -> R.drawable.bg_fall
+        "winter" -> R.drawable.bg_winter
+        "ocean" -> R.drawable.bg_ocean
+        "desert" -> R.drawable.bg_desert
+        "city" -> R.drawable.bg_city
+        "farm" -> R.drawable.bg_farm
+        "mountains" -> R.drawable.bg_mountains
+        "warehouse" -> R.drawable.bg_warehouse
+        "shopping" -> R.drawable.bg_shopping
+        "horizon" -> R.drawable.bg_horizon
+        else -> R.drawable.bg_aurora
+    }
+
+    /** The color the art's sky is behind the text, which decides light or dark text on the full-page pass. */
+    fun skyColor(key: String): String = themes.firstOrNull { it.art == key }?.color ?: "#1a1a1a"
 
     /** Colors to pick from for a theme. Google advises against very bright neon colors on passes. */
     val swatches: List<String> = listOf(

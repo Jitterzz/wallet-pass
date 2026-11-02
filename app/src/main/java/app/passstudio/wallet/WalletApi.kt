@@ -11,6 +11,7 @@ import java.net.URLEncoder
 /** Google Wallet passes: the "Add to Google Wallet" link, and updating a pass that's already saved. */
 object WalletApi {
     private const val OBJECTS = "https://walletobjects.googleapis.com/walletobjects/v1/genericObject/"
+    private const val CLASSES = "https://walletobjects.googleapis.com/walletobjects/v1/genericClass"
     private const val SAVE = "https://pay.google.com/gp/v/save/"
 
     class SaveLink(val url: String, val objectId: String, val classId: String)
@@ -30,7 +31,8 @@ object WalletApi {
 
     fun artUrl(settings: Settings, art: String): String {
         val base = settings.artBase.trim().ifBlank { app.passstudio.data.Catalog.DEFAULT_ART_BASE }
-        return (if (base.endsWith("/")) base else "$base/") + art + ".png"
+        // The version makes a new link whenever the art changes, so Google Wallet loads the new picture.
+        return (if (base.endsWith("/")) base else "$base/") + art + ".png?v=" + app.passstudio.data.Catalog.ART_VERSION
     }
 
     /** The pass as Google Wallet stores it (a Generic pass object). */
@@ -125,6 +127,32 @@ object WalletApi {
             404 -> throw WalletNotFound()
             else -> throw WalletException(Http.errorOf(r))
         }
+    }
+
+    /** Every page of a Google Wallet list call. Blocking. */
+    private fun listAll(base: String, query: String, token: String): List<JSONObject> {
+        val out = mutableListOf<JSONObject>()
+        var page: String? = null
+        var pages = 0
+        do {
+            val url = "$base?$query&maxResults=100" + (page?.let { "&token=" + URLEncoder.encode(it, "UTF-8") } ?: "")
+            val r = Http.request("GET", url, bearer = token)
+            if (r.code != 200) throw WalletException(Http.errorOf(r))
+            val o = JSONObject(r.body)
+            o.optJSONArray("resources")?.let { a -> for (i in 0 until a.length()) out += a.getJSONObject(i) }
+            page = o.optJSONObject("pagination")?.optString("nextPageToken")?.takeIf { it.isNotBlank() }
+            pages++
+        } while (page != null && pages < 50)
+        return out
+    }
+
+    /** The passes Pass Studio made for this issuer that are in Google Wallet (as Google stores them). Blocking. */
+    fun listSaved(sa: ServiceAccount, issuerId: String): List<JSONObject> {
+        val id = issuerId.trim()
+        if (id.isEmpty() || !id.all { it.isDigit() }) throw WalletException("Add your Issuer ID in Settings first.")
+        val token = GoogleAuth.accessToken(sa)
+        val classes = listAll(CLASSES, "issuerId=$id", token).map { it.optString("id") }.filter { it.startsWith("$id.ps_class_") }
+        return classes.flatMap { cls -> listAll(OBJECTS.trimEnd('/'), "classId=" + URLEncoder.encode(cls, "UTF-8"), token) }
     }
 
     /**

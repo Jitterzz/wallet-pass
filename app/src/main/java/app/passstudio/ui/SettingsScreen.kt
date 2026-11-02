@@ -42,11 +42,13 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import app.passstudio.BuildConfig
+import app.passstudio.QuickAccess
 import app.passstudio.data.Catalog
 import app.passstudio.data.Store
 import app.passstudio.wallet.GoogleAuth
 import app.passstudio.wallet.KeyVault
 import app.passstudio.wallet.LogoUpload
+import app.passstudio.wallet.Restore
 import app.passstudio.wallet.ServiceAccount
 import app.passstudio.wallet.Sync
 import app.passstudio.wallet.WalletApi
@@ -182,9 +184,52 @@ fun SettingsScreen(onBack: () -> Unit) {
                     Spacer(Modifier.width(12.dp))
                     if (busy) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
                 }
+                FilledTonalButton(enabled = !busy, onClick = {
+                    saveFields()
+                    busy = true
+                    scope.launch {
+                        val result = withContext(Dispatchers.IO) { runCatching { Restore.run(context.applicationContext) } }
+                        busy = false
+                        message = result.fold(
+                            onSuccess = { n ->
+                                when (n) {
+                                    0 -> "No passes to bring back. Any already in Google Wallet are here."
+                                    1 -> "Brought back 1 pass from Google Wallet."
+                                    else -> "Brought back $n passes from Google Wallet."
+                                }
+                            },
+                            onFailure = { it.message ?: "Couldn't reach Google Wallet." },
+                        )
+                    }
+                }) { Text("Bring back passes from Google Wallet") }
+                Text(
+                    "After reinstalling the app or moving to a new phone, this brings back the passes you already have in " +
+                        "Google Wallet, still linked so their themes keep changing.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 Text(
                     "The key stays on this phone, locked with Android's keystore and left out of backups. It lets this app " +
                         "make and update passes for your issuer account, so don't share the file.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            SectionTitle("Quick access")
+            Panel {
+                SwitchRow(
+                    "Open straight to my pass",
+                    "Opening Pass Studio (from its icon, the side button or a back tap) shows your starred pass full " +
+                        "screen. Star a pass from its page.",
+                    d.settings.openToPass,
+                ) { on -> Store.update { it.copy(settings = it.settings.copy(openToPass = on)) } }
+                FilledTonalButton(onClick = { QuickAccess.requestTile(context) { message = it } }) {
+                    Text("Add quick settings tile")
+                }
+                Text(
+                    "On a Galaxy phone, Samsung's Good Lock app (RegiStar module) can open Pass Studio when you triple tap " +
+                        "the back of the phone or hold the side button.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

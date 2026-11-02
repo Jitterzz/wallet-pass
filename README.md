@@ -8,6 +8,12 @@ their own for the seasons and holidays.
 - **Seasons & holidays:** passes set to change on their own switch themes in Google Wallet as the year goes by.
   Pick which theme each holiday and season gets, or turn holidays off.
 - **Details and links:** a Member ID line, extra lines, a Nearby locations link (Google Maps) and website links.
+- **Full-art pass:** Pass Studio shows each pass like Google Wallet does (logo, card name, your name, barcode,
+  details), with the theme's art covering the whole page. The screen goes to full brightness while it's up, and it
+  works with no signal. Open it from the **quick settings tile**, a **home-screen shortcut**, or just by opening the
+  app (it goes straight to your starred pass).
+- **Bring back passes:** after reinstalling or moving to a new phone, Settings brings back the passes already in
+  Google Wallet, still linked so their themes keep changing.
 - **Logos:** a wide transparent PNG at the top of the pass, or a round logo. Pick a PNG on the phone and it's
   sized for Google Wallet and uploaded to this repo's [`logos/`](logos) folder, or paste any public https link.
 
@@ -41,5 +47,9 @@ tokens) for only this repo, with **Contents: Read and write**. In the app: **Set
 ## Building
 
 The APK builds on GitHub: every push to `main` runs [`build-apk.yml`](.github/workflows/build-apk.yml) and puts the
-APK on the Releases page. Add the four signing secrets (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`,
-`KEY_PASSWORD`; the same values as Rounds work) so each build installs over the last one.
+APK on the Releases page.
+
+To sign it, add one repository secret, `KEYSTORE_PASSWORD` (Settings > Secrets and variables > Actions > New
+repository secret): the password for [`signing/release.p12`](signing), Pass Studio's own signing key. The key file is
+locked with that password, so it's safe in the repo; keep the password private. Signed builds install over each other
+and keep your passes and Google key.

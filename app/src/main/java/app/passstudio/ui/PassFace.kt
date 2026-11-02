@@ -87,12 +87,14 @@ object Barcodes {
     }
 
     /** The barcode as a picture, or null when the value doesn't fit the type (like letters in an EAN-13). */
-    fun render(value: String, type: String): ImageBitmap? {
+    fun render(value: String, type: String, width: Int = 0, height: Int = 0): ImageBitmap? {
         val format = zxing(type) ?: return null
         val square = isSquare(type)
+        // Drawn at the size it shows at, so every bar is a whole number of pixels wide and scans cleanly.
+        val w = if (width > 0) width else if (square) 400 else 900
+        val h = if (height > 0) height else if (square) 400 else 220
         return try {
-            val m = MultiFormatWriter().encode(value, format, if (square) 400 else 900, if (square) 400 else 220,
-                mapOf(EncodeHintType.MARGIN to 0))
+            val m = MultiFormatWriter().encode(value, format, w, h, mapOf(EncodeHintType.MARGIN to 0))
             val px = IntArray(m.width * m.height)
             for (y in 0 until m.height) {
                 for (x in 0 until m.width) px[y * m.width + x] = if (m.get(x, y)) 0xFF000000.toInt() else 0xFFFFFFFF.toInt()

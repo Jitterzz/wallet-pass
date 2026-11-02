@@ -61,6 +61,10 @@ data class Settings(
     /** Where picked logos get uploaded ("owner/repo"), so Google Wallet can load them from a public link. */
     val githubRepo: String = Catalog.DEFAULT_GITHUB_REPO,
     val githubBranch: String = "main",
+    /** The pass the quick settings tile opens (the starred one); the first pass when none is starred. */
+    val quickPassId: String = "",
+    /** Opening Pass Studio from its icon (or the side button) goes straight to that pass. */
+    val openToPass: Boolean = true,
 )
 
 data class AppData(
@@ -83,7 +87,8 @@ object DataJson {
             d.schedule.forEach { (k, v) -> put(k.name, JSONObject().put("themeId", v.themeId).put("on", v.on)) }
         })
         o.put("settings", JSONObject().put("issuerId", d.settings.issuerId).put("artBase", d.settings.artBase)
-            .put("githubRepo", d.settings.githubRepo).put("githubBranch", d.settings.githubBranch))
+            .put("githubRepo", d.settings.githubRepo).put("githubBranch", d.settings.githubBranch)
+            .put("quickPassId", d.settings.quickPassId).put("openToPass", d.settings.openToPass))
         return o.toString()
     }
 
@@ -108,6 +113,8 @@ object DataJson {
             githubRepo = st?.optString("githubRepo", Catalog.DEFAULT_GITHUB_REPO)?.ifBlank { Catalog.DEFAULT_GITHUB_REPO }
                 ?: Catalog.DEFAULT_GITHUB_REPO,
             githubBranch = st?.optString("githubBranch", "main")?.ifBlank { "main" } ?: "main",
+            quickPassId = st?.optString("quickPassId", "") ?: "",
+            openToPass = st?.optBoolean("openToPass", true) ?: true,
         )
         return AppData(passes, themes, schedule, settings)
     }

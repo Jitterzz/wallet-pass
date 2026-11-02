@@ -37,6 +37,15 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import app.passstudio.wallet.Restore
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import android.widget.Toast
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -102,7 +111,7 @@ fun HomeScreen(
             }
             if (!ready) item { SetupCard(onSettings) }
             if (d.passes.isEmpty()) {
-                item { EmptyCard(onNewPass) }
+                item { EmptyCard(onNewPass, connected = ready) }
             } else {
                 item {
                     Text("Your passes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
@@ -152,7 +161,10 @@ private fun SetupCard(onSettings: () -> Unit) {
 }
 
 @Composable
-private fun EmptyCard(onNewPass: () -> Unit) {
+private fun EmptyCard(onNewPass: () -> Unit, connected: Boolean) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var restoring by remember { mutableStateOf(false) }
     Panel {
         Text("No passes yet", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Text(
@@ -163,6 +175,21 @@ private fun EmptyCard(onNewPass: () -> Unit) {
             Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(6.dp))
             Text("Make a pass")
+        }
+        if (connected) {
+            // After a reinstall: the passes already in Google Wallet come back, still linked.
+            TextButton(enabled = !restoring, onClick = {
+                restoring = true
+                scope.launch {
+                    val result = withContext(Dispatchers.IO) { runCatching { Restore.run(context.applicationContext) } }
+                    restoring = false
+                    val text = result.fold(
+                        onSuccess = { n -> if (n == 0) "No passes found in Google Wallet." else "Brought back $n from Google Wallet." },
+                        onFailure = { it.message ?: "Couldn't reach Google Wallet." },
+                    )
+                    Toast.makeText(context, text, Toast.LENGTH_LONG).show()
+                }
+            }) { Text(if (restoring) "Bringing them back…" else "Bring back passes from Google Wallet") }
         }
     }
 }
