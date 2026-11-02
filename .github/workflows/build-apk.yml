@@ -18,7 +18,8 @@ on:
     paths-ignore:
       - "**.md"
       - "logos/**"   # logos uploaded from the app don't need a new build
-      - "art/**"     # the art Google Wallet loads (the app has its own copy)
+      - "art/**"     # the art Google Wallet used to load
+      - "art-src/**" # the scripts that draw the theme art (the app has the pictures)
   workflow_dispatch:
 
 permissions:

@@ -1,6 +1,6 @@
 package app.passstudio.ui
 
-// Made by the art script (wallet-pass-art/art2/export_app.py); don't edit by hand.
+// Made by the art script (art-src/export_app.py); don't edit by hand.
 
 /**
  * Where each theme's moving parts are on its page art (1032 x 2240): chimneys, flames, lights, water and so on,
