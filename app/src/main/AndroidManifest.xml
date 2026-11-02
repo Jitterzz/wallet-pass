@@ -1,18 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Talks to Google Wallet (adding and updating passes) and loads logo images from their links. -->
-    <uses-permission android:name="android.permission.INTERNET" />
-
-    <!-- "Open in Google Wallet" on a pass looks for the Google Wallet app, which Android only shows to apps that say so. -->
-    <queries>
-        <package android:name="com.google.android.apps.walletnfcrel" />
-    </queries>
-
-    <!-- Backups are off: the Google key stays on this phone only. -->
+    <!-- Everything stays on the phone: no internet needed. Passes and logos go along with the phone's backups. -->
     <application
-        android:allowBackup="false"
-        android:fullBackupContent="false"
+        android:allowBackup="true"
+        android:fullBackupContent="@xml/backup_rules"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"

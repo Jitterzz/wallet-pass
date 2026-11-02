@@ -26,7 +26,6 @@ import app.passstudio.ui.ScheduleScreen
 import app.passstudio.ui.SettingsScreen
 import app.passstudio.ui.ThemeEditor
 import app.passstudio.ui.ThemesScreen
-import app.passstudio.wallet.SyncWorker
 
 /** The screens, as a stack: the last one shows, and Back takes it off. */
 sealed interface Screen {
@@ -47,7 +46,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         Store.init(this)
-        SyncWorker.schedule(this)
         if (savedInstanceState == null) openPass.value = passToOpen(intent, launched = true)
         setContent { PassStudioTheme { App(openPass) } }
     }
@@ -56,12 +54,6 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         passToOpen(intent, launched = false)?.let { openPass.value = it }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        // Coming back from Google Wallet: see if a pass got saved, and catch up on today's theme.
-        SyncWorker.runNow(this)
     }
 
     /**
@@ -114,11 +106,11 @@ private fun App(openPass: MutableState<String?>) {
                 passId = screen.id,
                 onBack = { back() },
                 onEdit = { go(Screen.EditPass(screen.id)) },
+                onSchedule = { go(Screen.Schedule) },
             )
             is Screen.EditPass -> PassEditor(
                 passId = screen.id,
                 onBack = { back() },
-                onSettings = { go(Screen.Settings) },
                 onSchedule = { go(Screen.Schedule) },
             )
             Screen.Themes -> ThemesScreen(

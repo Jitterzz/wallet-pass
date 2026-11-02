@@ -35,27 +35,26 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import app.passstudio.data.Catalog
 import app.passstudio.data.PassTheme
-import app.passstudio.wallet.LogoUpload
+import app.passstudio.data.Logos
+import app.passstudio.data.Pass
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.net.HttpURLConnection
-import java.net.URL
 
 // ---------- The app's own look ----------
 
@@ -102,7 +101,7 @@ fun PassStudioTheme(content: @Composable () -> Unit) {
 
 fun parseHex(hex: String): Color? = runCatching { Color(android.graphics.Color.parseColor(hex.trim())) }.getOrNull()
 
-/** White or near-black text, whichever reads better on [background] (Google Wallet picks the same way). */
+/** White or near-black text, whichever reads better on [background]. */
 fun inkOn(background: Color): Color = if (background.luminance() > 0.45f) Color(0xFF1A1A1A) else Color.White
 
 fun isHexColor(s: String) = Regex("^#[0-9a-fA-F]{6}$").matches(s.trim())
@@ -208,59 +207,43 @@ fun ThemeTile(theme: PassTheme, selected: Boolean, onClick: () -> Unit, modifier
     }
 }
 
-// ---------- Images from a link (logos) ----------
+// ---------- Logos ----------
 
 private val imageCache = LruCache<String, ImageBitmap>(24)
 
-/**
- * Loads a picture from an https link: from memory, else from the copy kept on the phone, else from the internet
- * (keeping a copy). Null while loading or if it can't be loaded.
- */
+/** A pass's logo (by the name it's kept under on the phone), or null while it loads or if there's none. */
 @Composable
-fun rememberUrlImage(url: String): ImageBitmap? {
+fun rememberLogo(name: String): ImageBitmap? {
     val context = LocalContext.current
-    val link = url.trim()
-    val cached: ImageBitmap? = if (link.isEmpty()) null else imageCache.get(link)
-    val image by produceState(cached, link) {
-        // A new link starts from its own picture (or none), not the one the last link showed.
+    val key = name.trim()
+    val cached: ImageBitmap? = if (key.isEmpty()) null else imageCache.get(key)
+    val image by produceState(cached, key) {
+        // A new logo starts from its own picture (or none), not the one the last logo showed.
         value = cached
-        if (value == null && link.startsWith("https://")) {
+        if (value == null && key.isNotEmpty()) {
             val loaded = withContext(Dispatchers.IO) {
-                val file = LogoUpload.cacheFile(context, link)
-                val fromPhone = runCatching { if (file.exists()) BitmapFactory.decodeFile(file.path) else null }.getOrNull()
-                fromPhone?.asImageBitmap() ?: runCatching {
-                    val c = URL(link).openConnection() as HttpURLConnection
-                    c.connectTimeout = 10_000
-                    c.readTimeout = 15_000
-                    try {
-                        val bytes = c.inputStream.use { it.readBytes() }
-                        val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                        if (bmp != null) runCatching { file.writeBytes(bytes) }
-                        bmp?.asImageBitmap()
-                    } finally {
-                        c.disconnect()
-                    }
+                runCatching {
+                    val file = Logos.file(context, key)
+                    if (file.exists()) BitmapFactory.decodeFile(file.path)?.asImageBitmap() else null
                 }.getOrNull()
             }
-            if (loaded != null) imageCache.put(link, loaded)
+            if (loaded != null) imageCache.put(key, loaded)
             value = loaded
         }
     }
     return image
 }
 
-/**
- * A round logo in its circle. One that fits the round spot fills it, as in Google Wallet; one that doesn't (an older
- * upload, or a wide picture) is shown whole inside a white circle instead of being cut off.
- */
+/** A logo in its white circle, or the card name's first letter when there's no logo. */
 @Composable
-fun RoundLogo(image: ImageBitmap, size: androidx.compose.ui.unit.Dp, modifier: Modifier = Modifier) {
-    val fits = remember(image) { runCatching { LogoUpload.fits(image.asAndroidBitmap(), LogoUpload.Kind.ROUND) }.getOrDefault(true) }
-    Box(modifier.size(size).clip(CircleShape).background(Color.White), contentAlignment = Alignment.Center) {
-        if (fits) {
-            Image(image, contentDescription = "Logo", contentScale = ContentScale.Crop, modifier = Modifier.size(size))
-        } else {
-            Image(image, contentDescription = "Logo", contentScale = ContentScale.Fit, modifier = Modifier.size(size * 0.72f))
+fun RoundLogo(pass: Pass, size: Dp, ink: Color, letterSize: TextUnit, modifier: Modifier = Modifier) {
+    val image = rememberLogo(pass.logo)
+    if (image != null) {
+        Image(image, contentDescription = "Logo", contentScale = ContentScale.Crop,
+            modifier = modifier.size(size).clip(CircleShape).background(Color.White))
+    } else {
+        Box(modifier.size(size).clip(CircleShape).background(ink.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
+            Text(pass.title.trim().take(1).uppercase().ifBlank { "P" }, color = ink, fontSize = letterSize, fontWeight = FontWeight.SemiBold)
         }
     }
 }

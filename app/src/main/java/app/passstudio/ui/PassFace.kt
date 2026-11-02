@@ -29,15 +29,20 @@ import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.passstudio.data.Catalog
 import app.passstudio.data.Pass
 import app.passstudio.data.PassTheme
@@ -48,7 +53,7 @@ import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.MultiFormatWriter
 
-/** The barcode types Google Wallet takes, drawing them for previews, and scanning them off a card. */
+/** The barcode types a pass can show, drawing them, and scanning them off a card. */
 object Barcodes {
     val types: List<String> = listOf(
         "CODE_128", "CODE_39", "QR_CODE", "PDF_417", "AZTEC", "DATA_MATRIX", "EAN_13", "EAN_8", "UPC_A", "ITF_14", "CODABAR",
@@ -107,8 +112,8 @@ object Barcodes {
         }
     }
 
-    /** Which Google Wallet type a scanned barcode is. */
-    fun walletType(format: Int, value: String): String = when (format) {
+    /** Which type a scanned barcode is. */
+    fun typeOf(format: Int, value: String): String = when (format) {
         Barcode.FORMAT_CODE_128 -> "CODE_128"
         Barcode.FORMAT_CODE_39 -> "CODE_39"
         Barcode.FORMAT_QR_CODE -> "QR_CODE"
@@ -129,76 +134,47 @@ object Barcodes {
         GmsBarcodeScanning.getClient(context, options).startScan()
             .addOnSuccessListener { barcode ->
                 val value = barcode.rawValue.orEmpty()
-                if (value.isNotBlank()) onResult(value, walletType(barcode.format, value))
+                if (value.isNotBlank()) onResult(value, typeOf(barcode.format, value))
                 else onError("That barcode was empty. Try again, or type the number.")
             }
             .addOnFailureListener { e -> onError(e.message ?: "Couldn't open the scanner.") }
     }
 }
 
-/** The logo spot at the top of a pass: the wide logo, else the round logo, else the title's first letter. */
-@Composable
-private fun LogoSpot(pass: Pass, ink: Color, compact: Boolean) {
-    val wide = rememberUrlImage(pass.wideLogoUrl)
-    val round = rememberUrlImage(pass.logoUrl)
-    val circle = if (compact) 30.dp else 40.dp
-    when {
-        wide != null -> Image(
-            bitmap = wide,
-            contentDescription = "Logo",
-            contentScale = ContentScale.Fit,
-            alignment = Alignment.CenterStart,
-            modifier = Modifier.height(if (compact) 28.dp else 40.dp).widthIn(max = if (compact) 140.dp else 200.dp),
-        )
-        round != null -> RoundLogo(round, circle)
-        else -> Box(
-            Modifier.size(circle).clip(CircleShape).background(ink.copy(alpha = 0.18f)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                pass.title.trim().take(1).uppercase().ifBlank { "P" },
-                color = ink,
-                fontWeight = FontWeight.SemiBold,
-                style = if (compact) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
-            )
-        }
-    }
-}
-
 /**
- * A preview of the pass the way Google Wallet lays it out (close, not exact: Google draws the real one). The theme's
- * color fills the page and its art runs edge to edge under the barcode, blending into the color.
+ * A small version of the pass page, for the editors: the theme's page art with the logo, card name, name and barcode
+ * over its sky, and its scene along the bottom.
  */
 @Composable
 fun PassFace(pass: Pass, theme: PassTheme, modifier: Modifier = Modifier) {
-    val bg = parseHex(theme.color) ?: Color(0xFF1A1A1A)
-    val ink = inkOn(bg)
-    Column(modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(bg)) {
-        Column(Modifier.padding(top = 20.dp, start = 20.dp, end = 20.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                LogoSpot(pass, ink, compact = false)
-                if (!WalletUrl.isImage(pass.wideLogoUrl)) {
-                    Spacer(Modifier.width(12.dp))
-                    Text(pass.title.ifBlank { "Card name" }, color = ink, style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-            }
-            Spacer(Modifier.height(18.dp))
-            if (pass.subheader.isNotBlank()) {
-                Text(pass.subheader, color = ink.copy(alpha = 0.8f), style = MaterialTheme.typography.bodyMedium)
-            }
-            Text(pass.header.ifBlank { "Your name" }, color = ink, style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Spacer(Modifier.height(18.dp))
-            BarcodeBox(pass)
-        }
-        Spacer(Modifier.height(4.dp))
+    val sky = parseHex(Catalog.skyColor(theme.art)) ?: parseHex(theme.color) ?: Color(0xFF1A1A1A)
+    val ink = inkOn(sky)
+    val shadow = Shadow(
+        color = if (ink == Color.White) Color.Black.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.7f),
+        offset = Offset(0f, 2f),
+        blurRadius = 10f,
+    )
+    Box(modifier.fillMaxWidth().aspectRatio(0.8f).clip(RoundedCornerShape(28.dp)).background(sky)) {
         Image(
-            painter = painterResource(Catalog.artRes(theme.art)),
+            painter = painterResource(Catalog.pageRes(theme.art)),
             contentDescription = theme.name,
             contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxWidth().aspectRatio(1032f / 812f),
+            alignment = Alignment.BottomCenter,
+            modifier = Modifier.matchParentSize(),
         )
+        Column(Modifier.fillMaxWidth().padding(top = 22.dp, start = 24.dp, end = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            RoundLogo(pass, 58.dp, ink, 26.sp)
+            Spacer(Modifier.height(8.dp))
+            Text(pass.title.ifBlank { "Card name" }, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Medium, shadow = shadow))
+            Text(pass.header.ifBlank { "Your name" }, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                style = TextStyle(fontSize = 26.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, shadow = shadow))
+            if (pass.subheader.isNotBlank()) {
+                Text(pass.subheader, color = ink, style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Medium, shadow = shadow))
+            }
+            Spacer(Modifier.height(12.dp))
+            BarcodeBox(pass)
+        }
     }
 }
 
@@ -258,7 +234,7 @@ fun ThemedCard(theme: PassTheme, onClick: () -> Unit, modifier: Modifier = Modif
     }
 }
 
-/** A pass in a list: today's theme filling the card, its name, and a line about where it stands in Google Wallet. */
+/** A pass in a list: today's theme filling the card, its logo and name, and which theme it's showing. */
 @Composable
 fun PassCard(pass: Pass, theme: PassTheme, status: String, onClick: () -> Unit) {
     ThemedCard(theme, onClick, Modifier.heightIn(min = 150.dp)) { ink ->
@@ -267,21 +243,14 @@ fun PassCard(pass: Pass, theme: PassTheme, status: String, onClick: () -> Unit) 
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                LogoSpot(pass, ink, compact = true)
-                if (!WalletUrl.isImage(pass.wideLogoUrl)) {
-                    Spacer(Modifier.width(10.dp))
-                    Text(pass.title.ifBlank { "Card name" }, color = ink, style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
+                RoundLogo(pass, 30.dp, ink, 14.sp)
+                Spacer(Modifier.width(10.dp))
+                Text(pass.title.ifBlank { "Card name" }, color = ink, style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Text(pass.header.ifBlank { "Your name" }, color = ink, style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(status, color = ink.copy(alpha = 0.85f), style = MaterialTheme.typography.bodySmall, maxLines = 2)
         }
     }
-}
-
-/** Link checks shared by the screens. */
-object WalletUrl {
-    fun isImage(url: String) = url.trim().startsWith("https://")
 }

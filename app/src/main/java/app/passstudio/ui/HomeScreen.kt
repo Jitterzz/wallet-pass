@@ -23,7 +23,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -37,21 +36,11 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.Dispatchers
-import app.passstudio.wallet.Restore
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.mutableStateOf
-import android.widget.Toast
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -62,7 +51,6 @@ import app.passstudio.data.Pass
 import app.passstudio.data.PassTheme
 import app.passstudio.data.Seasons
 import app.passstudio.data.Store
-import app.passstudio.wallet.KeyVault
 import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -75,10 +63,8 @@ fun HomeScreen(
     onSettings: () -> Unit,
 ) {
     val d by Store.data.collectAsState()
-    val context = LocalContext.current
     val occasion = Seasons.current(LocalDate.now(), d.schedule)
     val todayTheme = Store.theme(d.schedule[occasion]?.themeId ?: occasion.defaultTheme, d)
-    val ready = d.settings.issuerId.isNotBlank() && KeyVault.has(context)
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -109,9 +95,8 @@ fun HomeScreen(
             item {
                 TodayCard(occasion.label, occasion.days, todayTheme, onSchedule)
             }
-            if (!ready) item { SetupCard(onSettings) }
             if (d.passes.isEmpty()) {
-                item { EmptyCard(onNewPass, connected = ready) }
+                item { EmptyCard(onNewPass) }
             } else {
                 item {
                     Text("Your passes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
@@ -125,15 +110,8 @@ fun HomeScreen(
     }
 }
 
-fun statusOf(p: Pass, themeName: String): String {
-    val look = if (p.mode == LookMode.AUTO) "$themeName · changes with the seasons" else themeName
-    return when {
-        p.lastError.isNotBlank() && p.inWallet -> "In Google Wallet · ${p.lastError}"
-        p.inWallet -> "In Google Wallet · $look"
-        p.pending -> "Waiting for you to save it in Google Wallet"
-        else -> "Not in Google Wallet yet · $look"
-    }
-}
+fun statusOf(p: Pass, themeName: String): String =
+    if (p.mode == LookMode.AUTO) "$themeName · changes with the seasons and holidays" else "$themeName theme"
 
 @Composable
 private fun TodayCard(occasion: String, days: String, theme: PassTheme, onSchedule: () -> Unit) {
@@ -149,47 +127,18 @@ private fun TodayCard(occasion: String, days: String, theme: PassTheme, onSchedu
 }
 
 @Composable
-private fun SetupCard(onSettings: () -> Unit) {
-    Panel {
-        Text("Connect Google Wallet", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        Text(
-            "Add your Issuer ID and Google key once. Then your passes can go into Google Wallet and change with the seasons.",
-            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Button(onClick = onSettings) { Text("Set it up") }
-    }
-}
-
-@Composable
-private fun EmptyCard(onNewPass: () -> Unit, connected: Boolean) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    var restoring by remember { mutableStateOf(false) }
+private fun EmptyCard(onNewPass: () -> Unit) {
     Panel {
         Text("No passes yet", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Text(
-            "Make a pass for any card with a barcode: scan it, pick a look, and add it to Google Wallet.",
+            "Make a pass for any card with a barcode: scan it, add your logo, and pick a look. Show it at the register " +
+                "straight from here.",
             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         TextButton(onClick = onNewPass) {
             Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(6.dp))
             Text("Make a pass")
-        }
-        if (connected) {
-            // After a reinstall: the passes already in Google Wallet come back, still linked.
-            TextButton(enabled = !restoring, onClick = {
-                restoring = true
-                scope.launch {
-                    val result = withContext(Dispatchers.IO) { runCatching { Restore.run(context.applicationContext) } }
-                    restoring = false
-                    val text = result.fold(
-                        onSuccess = { n -> if (n == 0) "No passes found in Google Wallet." else "Brought back $n from Google Wallet." },
-                        onFailure = { it.message ?: "Couldn't reach Google Wallet." },
-                    )
-                    Toast.makeText(context, text, Toast.LENGTH_LONG).show()
-                }
-            }) { Text(if (restoring) "Bringing them back…" else "Bring back passes from Google Wallet") }
         }
     }
 }

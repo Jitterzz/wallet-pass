@@ -28,15 +28,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import app.passstudio.data.LookMode
 import app.passstudio.data.Occasion
 import app.passstudio.data.ScheduleEntry
 import app.passstudio.data.Seasons
 import app.passstudio.data.Store
-import app.passstudio.wallet.SyncWorker
 import java.time.LocalDate
 
 /**
@@ -46,19 +43,11 @@ import java.time.LocalDate
 @Composable
 fun ScheduleScreen(onBack: () -> Unit) {
     val d by Store.data.collectAsState()
-    val context = LocalContext.current
     var picking by remember { mutableStateOf<Occasion?>(null) }
     val today = Seasons.current(LocalDate.now(), d.schedule)
 
     fun change(occ: Occasion, entry: ScheduleEntry) {
-        Store.update { data ->
-            val next = data.copy(schedule = data.schedule + (occ to entry))
-            // Passes on auto whose look changes today get it in Google Wallet.
-            next.copy(passes = next.passes.map { p ->
-                if (p.inWallet && p.mode == LookMode.AUTO && Store.themeFor(p, next).id != p.appliedThemeId) p.copy(dirty = true) else p
-            })
-        }
-        SyncWorker.runNow(context)
+        Store.update { data -> data.copy(schedule = data.schedule + (occ to entry)) }
     }
 
     Scaffold(containerColor = MaterialTheme.colorScheme.background, topBar = { BackBar("Seasons & holidays", onBack) }) { pad ->

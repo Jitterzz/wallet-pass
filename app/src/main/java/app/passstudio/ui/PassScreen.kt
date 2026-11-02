@@ -78,12 +78,12 @@ import app.passstudio.data.Store
 import java.net.URLEncoder
 
 /**
- * A pass the way Google Wallet shows it (round logo, card name, big name, barcode, then its details), except the
- * theme's art covers the whole page. Made for showing at the register: the screen goes to full brightness and
+ * The pass: round logo, card name, big name and barcode, then its details, with the theme's art covering the whole
+ * page. Made for showing at the register: the screen goes to full brightness and
  * stays on while it's open, and it works with no signal (the art is in the app and the logo is kept on the phone).
  */
 @Composable
-fun PassScreen(passId: String, onBack: () -> Unit, onEdit: () -> Unit) {
+fun PassScreen(passId: String, onBack: () -> Unit, onEdit: () -> Unit, onSchedule: () -> Unit) {
     val d by Store.data.collectAsState()
     val pass = d.passes.firstOrNull { it.id == passId }
     if (pass == null) {
@@ -113,6 +113,7 @@ fun PassScreen(passId: String, onBack: () -> Unit, onEdit: () -> Unit) {
     ShowAtRegister(lightArt = !darkArt)
 
     val starred = d.settings.quickPassId == pass.id
+    var pickingTheme by remember { mutableStateOf(false) }
     val code = pass.barcodeValue.trim()
     val screenHeight = LocalConfiguration.current.screenHeightDp
 
@@ -149,12 +150,15 @@ fun PassScreen(passId: String, onBack: () -> Unit, onEdit: () -> Unit) {
                         tint = ink,
                     )
                 }
+                IconButton(onClick = { pickingTheme = true }) {
+                    Icon(painterResource(R.drawable.ic_palette), contentDescription = "Change theme", tint = ink)
+                }
                 IconButton(onClick = onEdit) { Icon(Icons.Filled.Edit, contentDescription = "Edit pass", tint = ink) }
             }
 
             // Sized so everything fits above the scene at the bottom of the page.
             Spacer(Modifier.height(8.dp))
-            PageLogo(pass, ink)
+            RoundLogo(pass, 104.dp, ink, 46.sp)
             Spacer(Modifier.height(16.dp))
             Text(
                 pass.title.ifBlank { "My pass" },
@@ -230,12 +234,9 @@ fun PassScreen(passId: String, onBack: () -> Unit, onEdit: () -> Unit) {
                 }
 
                 Glass(darkArt) {
-                    PageRow(rememberVectorPainter(Icons.Filled.Edit), "Edit pass", ink, onEdit)
+                    PageRow(painterResource(R.drawable.ic_palette), "Change theme", ink) { pickingTheme = true }
                     Line(ink)
-                    PageRow(painterResource(R.drawable.ic_wallet), "Open Google Wallet", ink) {
-                        val wallet = context.packageManager.getLaunchIntentForPackage("com.google.android.apps.walletnfcrel")
-                        if (wallet != null) context.startActivity(wallet) else message = "Google Wallet isn't on this phone."
-                    }
+                    PageRow(rememberVectorPainter(Icons.Filled.Edit), "Edit pass", ink, onEdit)
                 }
 
                 Glass(darkArt) {
@@ -252,22 +253,12 @@ fun PassScreen(passId: String, onBack: () -> Unit, onEdit: () -> Unit) {
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
     }
-}
 
-/** The round logo, like Google Wallet's: the round logo, else the wide one in a white circle, else the first letter. */
-@Composable
-private fun PageLogo(pass: Pass, ink: Color) {
-    val round = rememberUrlImage(pass.logoUrl)
-    val wide = rememberUrlImage(pass.wideLogoUrl)
-    val circle = Modifier.size(104.dp).clip(CircleShape)
-    when {
-        round != null -> RoundLogo(round, 104.dp)
-        wide != null -> Box(circle.background(Color.White), contentAlignment = Alignment.Center) {
-            Image(wide, contentDescription = "Logo", contentScale = ContentScale.Fit, modifier = Modifier.fillMaxWidth().padding(14.dp))
-        }
-        else -> Box(circle.background(ink.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
-            Text(pass.title.trim().take(1).uppercase().ifBlank { "P" }, color = ink, fontSize = 46.sp, fontWeight = FontWeight.SemiBold)
-        }
+    if (pickingTheme) {
+        PassThemeSheet(pass, onDismiss = { pickingTheme = false }, onSchedule = {
+            pickingTheme = false
+            onSchedule()
+        })
     }
 }
 
@@ -331,7 +322,7 @@ private fun Line(ink: Color) {
 }
 
 /**
- * While a pass is up: full brightness (like Google Wallet, so the barcode scans), the screen stays on, and the
+ * While a pass is up: full brightness (so the barcode scans), the screen stays on, and the
  * status bar icons are light or dark to suit the art. All put back when the pass closes.
  */
 @Composable

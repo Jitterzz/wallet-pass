@@ -65,7 +65,7 @@ object Store {
         d.copy(
             customThemes = d.customThemes.filterNot { it.id == id },
             schedule = d.schedule.mapValues { (occ, e) -> if (e.themeId == id) e.copy(themeId = occ.defaultTheme) else e },
-            passes = d.passes.map { if (it.fixedThemeId == id) it.copy(fixedThemeId = "aurora", dirty = true) else it },
+            passes = d.passes.map { if (it.fixedThemeId == id) it.copy(fixedThemeId = "aurora") else it },
         )
     }
 

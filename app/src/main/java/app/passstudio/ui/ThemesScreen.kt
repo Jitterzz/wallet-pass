@@ -50,14 +50,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.passstudio.data.Catalog
+import app.passstudio.data.LookMode
 import app.passstudio.data.Pass
 import app.passstudio.data.PassTheme
 import app.passstudio.data.Store
-import app.passstudio.wallet.SyncWorker
 
 /** Every theme: the built-in ones by group, then the person's own. Tap one of yours to edit it. */
 @Composable
@@ -114,7 +113,6 @@ fun ThemesScreen(onBack: () -> Unit, onEdit: (String?) -> Unit, onCopy: (PassThe
 @Composable
 fun ThemeEditor(themeId: String?, startFrom: PassTheme?, onBack: () -> Unit) {
     val d by Store.data.collectAsState()
-    val context = LocalContext.current
     val existing = themeId?.let { id -> d.customThemes.firstOrNull { it.id == id } }
     var theme by remember(themeId) {
         mutableStateOf(
@@ -138,13 +136,6 @@ fun ThemeEditor(themeId: String?, startFrom: PassTheme?, onBack: () -> Unit) {
         }
         val name = theme.name.trim().ifBlank { "My theme" }
         Store.putTheme(theme.copy(name = name))
-        // Passes showing this theme get the new look in Google Wallet.
-        Store.update { data ->
-            data.copy(passes = data.passes.map { p ->
-                if (p.inWallet && Store.themeFor(p, data).id == theme.id) p.copy(dirty = true) else p
-            })
-        }
-        SyncWorker.runNow(context)
         onBack()
     }
 
@@ -271,6 +262,60 @@ fun ThemePickerSheet(title: String, current: String, onPick: (String) -> Unit, o
         ) {
             items(Store.allThemes(d), key = { it.id }) { t ->
                 ThemeTile(t, t.id == current, onClick = { onPick(t.id) })
+            }
+        }
+    }
+}
+
+/**
+ * Picking a pass's theme from its page: Automatic (it changes on its own with the seasons and holidays) or any one
+ * theme, which then stays. The page behind changes as soon as one is tapped.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PassThemeSheet(pass: Pass, onDismiss: () -> Unit, onSchedule: () -> Unit) {
+    val d by Store.data.collectAsState()
+    val live = d.passes.firstOrNull { it.id == pass.id } ?: pass
+    val auto = live.mode == LookMode.AUTO
+    val today = Store.themeFor(live.copy(mode = LookMode.AUTO), d)
+    fun pick(id: String?) = Store.updatePass(pass.id) {
+        if (id == null) it.copy(mode = LookMode.AUTO) else it.copy(mode = LookMode.FIXED, fixedThemeId = id)
+    }
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        Text("Theme", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(start = 20.dp, bottom = 4.dp))
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(150.dp),
+            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 32.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.fillMaxWidth().height(600.dp),
+        ) {
+            item(span = { GridItemSpan(maxLineSpan) }, key = "auto-note") {
+                Column(Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
+                    Text(
+                        if (auto) "Automatic: it changes on its own with the seasons and holidays. Today it's ${today.name}."
+                        else "Showing ${Store.theme(live.fixedThemeId, d).name} every day. Tap Automatic to have it change " +
+                            "with the seasons and holidays.",
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    TextButton(onClick = onSchedule, contentPadding = PaddingValues(0.dp)) { Text("Choose each holiday's theme") }
+                }
+            }
+            item(key = "auto") {
+                ThemeTile(today.copy(id = "auto", name = "Automatic"), selected = auto, onClick = { pick(null) })
+            }
+            if (d.customThemes.isNotEmpty()) {
+                item(span = { GridItemSpan(maxLineSpan) }, key = "mine") { SectionTitle("Your themes") }
+                items(d.customThemes, key = { "mine-" + it.id }) { t ->
+                    ThemeTile(t, selected = !auto && live.fixedThemeId == t.id, onClick = { pick(t.id) })
+                }
+            }
+            Catalog.groups.forEach { group ->
+                item(span = { GridItemSpan(maxLineSpan) }, key = "group-" + group.name) { SectionTitle(group.name) }
+                items(group.ids.map { Store.theme(it, d) }, key = { "pick-" + it.id }) { t ->
+                    ThemeTile(t, selected = !auto && live.fixedThemeId == t.id, onClick = { pick(t.id) })
+                }
             }
         }
     }

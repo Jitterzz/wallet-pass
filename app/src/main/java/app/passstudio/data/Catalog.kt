@@ -4,18 +4,6 @@ import app.passstudio.R
 
 /** The built-in themes, their art and the colors to pick from. */
 object Catalog {
-    /** Where Google Wallet loads each theme's art from: the art/ folder of the public GitHub repo. */
-    const val DEFAULT_ART_BASE = "https://raw.githubusercontent.com/Jitterzz/wallet-pass/main/art/"
-
-    /** The public repo picked logos are uploaded to (its logos/ folder). */
-    const val DEFAULT_GITHUB_REPO = "Jitterzz/wallet-pass"
-
-    /**
-     * Goes on the end of each art link. Google Wallet keeps its own copy of a picture by its link, so when the art in
-     * the repo changes, raising this gives every link a new address and Google loads the new picture.
-     */
-    const val ART_VERSION = 2
-
     data class Group(val name: String, val ids: List<String>)
 
     val themes: List<PassTheme> = listOf(
@@ -61,7 +49,7 @@ object Catalog {
 
     fun artName(key: String): String = themes.firstOrNull { it.art == key }?.name ?: key
 
-    /** The art bundled in the app, for previews. Google Wallet loads the same art from [DEFAULT_ART_BASE]. */
+    /** Each theme's scene, for the cards on the home screen and the theme pickers. */
     fun artRes(key: String): Int = when (key) {
         "halloween" -> R.drawable.art_halloween
         "dia_de_muertos" -> R.drawable.art_dia_de_muertos
@@ -88,10 +76,7 @@ object Catalog {
         else -> R.drawable.art_aurora
     }
 
-    /**
-     * The full-page version of each art, for Pass Studio's own pass screen: the sky runs up behind the logo, name and
-     * barcode, and the scene sits along the bottom.
-     */
+    /** The full-page art behind a pass: the sky runs up behind the logo, name and barcode; the scene is at the bottom. */
     fun pageRes(key: String): Int = when (key) {
         "halloween" -> R.drawable.bg_halloween
         "dia_de_muertos" -> R.drawable.bg_dia_de_muertos
@@ -121,7 +106,7 @@ object Catalog {
     /** The color the art's sky is behind the text, which decides light or dark text on the full-page pass. */
     fun skyColor(key: String): String = themes.firstOrNull { it.art == key }?.color ?: "#1a1a1a"
 
-    /** Colors to pick from for a theme. Google advises against very bright neon colors on passes. */
+    /** Colors to pick from for a theme. */
     val swatches: List<String> = listOf(
         "#1a1a1a", "#2b2b2b", "#677088", "#111827", "#1b2a4e", "#1e3a5f", "#216acf", "#0b5c8a",
         "#0f766e", "#1e7e3b", "#2f6b3a", "#3a7d5c", "#5b4a8a", "#6d5bb0", "#9147df", "#5a1f5f",

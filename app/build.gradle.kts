@@ -81,10 +81,8 @@ dependencies {
     implementation("androidx.compose.animation:animation")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-core")
-    // Keeps passes in Google Wallet on the right theme in the background (seasons and holidays).
-    implementation("androidx.work:work-runtime-ktx:2.10.0")
     // Scanning a card's barcode: Google's scanner screen, through Google Play services (no camera permission).
     implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
-    // Drawing barcodes for the preview.
+    // Drawing the barcodes.
     implementation("com.google.zxing:core:3.5.3")
 }

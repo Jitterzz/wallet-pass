@@ -28,21 +28,11 @@ data class Pass(
     val nearby: Boolean = true,
     val nearbyQuery: String = "",
     val links: List<PassLink> = emptyList(),
-    // Logos, by public https link (Google loads them from there).
-    val wideLogoUrl: String = "",
-    val logoUrl: String = "",
+    /** The logo at the top of the pass: the name of its picture in the app's own storage (see [Logos]). */
+    val logo: String = "",
     // Look.
     val mode: LookMode = LookMode.AUTO,
     val fixedThemeId: String = "aurora",
-    // Google Wallet.
-    val walletObjectId: String = "",
-    val walletClassId: String = "",
-    val inWallet: Boolean = false,
-    val pending: Boolean = false,
-    val appliedThemeId: String = "",
-    val dirty: Boolean = false,
-    val lastSync: Long = 0L,
-    val lastError: String = "",
 )
 
 data class PassTheme(
@@ -56,11 +46,6 @@ data class PassTheme(
 data class ScheduleEntry(val themeId: String, val on: Boolean = true)
 
 data class Settings(
-    val issuerId: String = "",
-    val artBase: String = Catalog.DEFAULT_ART_BASE,
-    /** Where picked logos get uploaded ("owner/repo"), so Google Wallet can load them from a public link. */
-    val githubRepo: String = Catalog.DEFAULT_GITHUB_REPO,
-    val githubBranch: String = "main",
     /** The pass the quick settings tile opens (the starred one); the first pass when none is starred. */
     val quickPassId: String = "",
     /** Opening Pass Studio from its icon (or the side button) goes straight to that pass. */
@@ -80,15 +65,13 @@ fun defaultSchedule(): Map<Occasion, ScheduleEntry> = Occasion.entries.associate
 object DataJson {
     fun encode(d: AppData): String {
         val o = JSONObject()
-        o.put("version", 1)
+        o.put("version", 2)
         o.put("passes", JSONArray().apply { d.passes.forEach { put(pass(it)) } })
         o.put("customThemes", JSONArray().apply { d.customThemes.forEach { put(theme(it)) } })
         o.put("schedule", JSONObject().apply {
             d.schedule.forEach { (k, v) -> put(k.name, JSONObject().put("themeId", v.themeId).put("on", v.on)) }
         })
-        o.put("settings", JSONObject().put("issuerId", d.settings.issuerId).put("artBase", d.settings.artBase)
-            .put("githubRepo", d.settings.githubRepo).put("githubBranch", d.settings.githubBranch)
-            .put("quickPassId", d.settings.quickPassId).put("openToPass", d.settings.openToPass))
+        o.put("settings", JSONObject().put("quickPassId", d.settings.quickPassId).put("openToPass", d.settings.openToPass))
         return o.toString()
     }
 
@@ -107,12 +90,6 @@ object DataJson {
         }
         val st = o.optJSONObject("settings")
         val settings = Settings(
-            issuerId = st?.optString("issuerId", "") ?: "",
-            artBase = st?.optString("artBase", Catalog.DEFAULT_ART_BASE)?.ifBlank { Catalog.DEFAULT_ART_BASE }
-                ?: Catalog.DEFAULT_ART_BASE,
-            githubRepo = st?.optString("githubRepo", Catalog.DEFAULT_GITHUB_REPO)?.ifBlank { Catalog.DEFAULT_GITHUB_REPO }
-                ?: Catalog.DEFAULT_GITHUB_REPO,
-            githubBranch = st?.optString("githubBranch", "main")?.ifBlank { "main" } ?: "main",
             quickPassId = st?.optString("quickPassId", "") ?: "",
             openToPass = st?.optBoolean("openToPass", true) ?: true,
         )
@@ -126,11 +103,8 @@ object DataJson {
         .put("rows", JSONArray().apply { p.rows.forEach { put(JSONObject().put("label", it.label).put("value", it.value)) } })
         .put("nearby", p.nearby).put("nearbyQuery", p.nearbyQuery)
         .put("links", JSONArray().apply { p.links.forEach { put(JSONObject().put("label", it.label).put("url", it.url)) } })
-        .put("wideLogoUrl", p.wideLogoUrl).put("logoUrl", p.logoUrl)
+        .put("logo", p.logo)
         .put("mode", p.mode.name).put("fixedThemeId", p.fixedThemeId)
-        .put("walletObjectId", p.walletObjectId).put("walletClassId", p.walletClassId)
-        .put("inWallet", p.inWallet).put("pending", p.pending).put("appliedThemeId", p.appliedThemeId)
-        .put("dirty", p.dirty).put("lastSync", p.lastSync).put("lastError", p.lastError)
 
     private fun pass(o: JSONObject): Pass {
         val rows = o.optJSONArray("rows")?.let { a ->
@@ -153,18 +127,9 @@ object DataJson {
             nearby = o.optBoolean("nearby", true),
             nearbyQuery = o.optString("nearbyQuery"),
             links = links,
-            wideLogoUrl = o.optString("wideLogoUrl"),
-            logoUrl = o.optString("logoUrl"),
+            logo = o.optString("logo"),
             mode = runCatching { LookMode.valueOf(o.optString("mode", "AUTO")) }.getOrDefault(LookMode.AUTO),
             fixedThemeId = o.optString("fixedThemeId", "aurora"),
-            walletObjectId = o.optString("walletObjectId"),
-            walletClassId = o.optString("walletClassId"),
-            inWallet = o.optBoolean("inWallet", false),
-            pending = o.optBoolean("pending", false),
-            appliedThemeId = o.optString("appliedThemeId"),
-            dirty = o.optBoolean("dirty", false),
-            lastSync = o.optLong("lastSync", 0L),
-            lastError = o.optString("lastError"),
         )
     }
 
