@@ -152,25 +152,26 @@ fun PassScreen(passId: String, onBack: () -> Unit, onEdit: () -> Unit) {
                 IconButton(onClick = onEdit) { Icon(Icons.Filled.Edit, contentDescription = "Edit pass", tint = ink) }
             }
 
-            Spacer(Modifier.height(16.dp))
+            // Sized so everything fits above the scene at the bottom of the page.
+            Spacer(Modifier.height(8.dp))
             PageLogo(pass, ink)
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(16.dp))
             Text(
                 pass.title.ifBlank { "My pass" },
                 color = ink,
-                style = TextStyle(fontSize = 20.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, shadow = shadow),
+                style = TextStyle(fontSize = 19.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, shadow = shadow),
                 modifier = Modifier.padding(horizontal = 24.dp),
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(10.dp))
             Text(
                 pass.header.ifBlank { pass.title.ifBlank { "My pass" } },
                 color = ink,
-                style = TextStyle(fontSize = 46.sp, lineHeight = 52.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
+                style = TextStyle(fontSize = 42.sp, lineHeight = 48.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
                     shadow = shadow),
                 modifier = Modifier.padding(horizontal = 20.dp),
             )
             if (pass.subheader.isNotBlank()) {
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(8.dp))
                 Text(
                     pass.subheader,
                     color = ink,
@@ -178,10 +179,10 @@ fun PassScreen(passId: String, onBack: () -> Unit, onEdit: () -> Unit) {
                 )
             }
             if (code.isNotEmpty()) {
-                Spacer(Modifier.height(26.dp))
+                Spacer(Modifier.height(22.dp))
                 PageBarcode(pass)
                 if (pass.showNumber) {
-                    Spacer(Modifier.height(14.dp))
+                    Spacer(Modifier.height(12.dp))
                     Text(
                         code,
                         color = ink,
@@ -258,7 +259,7 @@ fun PassScreen(passId: String, onBack: () -> Unit, onEdit: () -> Unit) {
 private fun PageLogo(pass: Pass, ink: Color) {
     val round = rememberUrlImage(pass.logoUrl)
     val wide = rememberUrlImage(pass.wideLogoUrl)
-    val circle = Modifier.size(112.dp).clip(CircleShape)
+    val circle = Modifier.size(104.dp).clip(CircleShape)
     when {
         round != null -> Image(round, contentDescription = "Logo", contentScale = ContentScale.Crop,
             modifier = circle.background(Color.White))
@@ -283,7 +284,7 @@ private fun PageBarcode(pass: Pass) {
     ) {
         BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             val density = LocalDensity.current
-            val heightDp = if (square) minOf(maxWidth, 230.dp) else 130.dp
+            val heightDp = if (square) minOf(maxWidth, 210.dp) else 118.dp
             val widthDp = if (square) heightDp else maxWidth
             val wPx = with(density) { widthDp.roundToPx() }
             val hPx = with(density) { heightDp.roundToPx() }
