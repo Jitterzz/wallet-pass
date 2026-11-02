@@ -65,6 +65,16 @@ fun SettingsScreen(onBack: () -> Unit) {
                 }
             }
 
+            SectionTitle("Themes")
+            Panel {
+                SwitchRow(
+                    "Moving themes",
+                    "Snow falls, leaves drift, fireworks go off, candles flicker... on your pass page. They hold still " +
+                        "when this is off or your phone has animations turned off.",
+                    d.settings.motion,
+                ) { on -> Store.update { it.copy(settings = it.settings.copy(motion = on)) } }
+            }
+
             SectionTitle("Side button")
             Panel {
                 listOf(

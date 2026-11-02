@@ -130,6 +130,7 @@ fun PassScreen(passId: String, onBack: () -> Unit, onEdit: () -> Unit, onSchedul
             alignment = Alignment.BottomCenter,
             modifier = Modifier.fillMaxSize(),
         )
+        ThemeMotion(theme.art, Modifier.fillMaxSize())
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding().navigationBarsPadding(),
             horizontalAlignment = Alignment.CenterHorizontally,

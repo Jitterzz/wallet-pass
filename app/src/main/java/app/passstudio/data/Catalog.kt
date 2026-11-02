@@ -8,32 +8,32 @@ object Catalog {
 
     val themes: List<PassTheme> = listOf(
         // Holidays.
-        PassTheme("halloween", "Halloween", "#1b1033", "halloween", true),
-        PassTheme("dia_de_muertos", "Día de los Muertos", "#2a0f3d", "dia_de_muertos", true),
-        PassTheme("thanksgiving", "Thanksgiving", "#f7c66b", "thanksgiving", true),
-        PassTheme("christmas", "Christmas", "#0c1b3a", "christmas", true),
-        PassTheme("new_year", "New Year's", "#070b1f", "new_year", true),
-        PassTheme("valentines", "Valentine's Day", "#ffd6e2", "valentines", true),
-        PassTheme("st_patricks", "St. Patrick's Day", "#8fd3ff", "st_patricks", true),
+        PassTheme("halloween", "Halloween", "#0d0820", "halloween", true),
+        PassTheme("dia_de_muertos", "Día de los Muertos", "#1a0828", "dia_de_muertos", true),
+        PassTheme("thanksgiving", "Thanksgiving", "#24132f", "thanksgiving", true),
+        PassTheme("christmas", "Christmas", "#050c1f", "christmas", true),
+        PassTheme("new_year", "New Year's", "#03050f", "new_year", true),
+        PassTheme("valentines", "Valentine's Day", "#fff0f5", "valentines", true),
+        PassTheme("st_patricks", "St. Patrick's Day", "#7cc8ff", "st_patricks", true),
         PassTheme("easter", "Easter", "#cfe8ff", "easter", true),
-        PassTheme("cinco_de_mayo", "Cinco de Mayo", "#1d6f7a", "cinco_de_mayo", true),
-        PassTheme("july_4", "4th of July", "#060d26", "july_4", true),
+        PassTheme("cinco_de_mayo", "Cinco de Mayo", "#0f3d48", "cinco_de_mayo", true),
+        PassTheme("july_4", "4th of July", "#020614", "july_4", true),
         // Seasons.
-        PassTheme("spring", "Spring", "#bfe6ff", "spring", true),
-        PassTheme("summer", "Summer", "#2f7fd6", "summer", true),
-        PassTheme("fall", "Fall", "#ffd59a", "fall", true),
-        PassTheme("winter", "Winter", "#b9d8f2", "winter", true),
+        PassTheme("spring", "Spring", "#a6d9ff", "spring", true),
+        PassTheme("summer", "Summer", "#1d69c3", "summer", true),
+        PassTheme("fall", "Fall", "#ffe6bd", "fall", true),
+        PassTheme("winter", "Winter", "#a0c6e9", "winter", true),
         // Everyday.
-        PassTheme("aurora", "Aurora", "#04101f", "aurora", true),
-        PassTheme("ocean", "Ocean", "#4fa7e8", "ocean", true),
+        PassTheme("aurora", "Aurora", "#020812", "aurora", true),
+        PassTheme("ocean", "Ocean", "#3a95de", "ocean", true),
         PassTheme("desert", "Desert", "#ffb067", "desert", true),
-        PassTheme("city", "City Nights", "#0d1230", "city", true),
+        PassTheme("city", "City Nights", "#060918", "city", true),
         PassTheme("farm", "Farm", "#ffcf8a", "farm", true),
-        PassTheme("mountains", "Mountains", "#6fb5f2", "mountains", true),
+        PassTheme("mountains", "Mountains", "#4f9ae6", "mountains", true),
         // Simple.
-        PassTheme("warehouse", "Warehouse", "#1a1a1a", "warehouse", true),
-        PassTheme("shopping", "Shopping", "#9147df", "shopping", true),
-        PassTheme("horizon", "Horizon", "#1e7e3b", "horizon", true),
+        PassTheme("warehouse", "Warehouse", "#121212", "warehouse", true),
+        PassTheme("shopping", "Shopping", "#7b35c9", "shopping", true),
+        PassTheme("horizon", "Horizon", "#14693a", "horizon", true),
     )
 
     val groups: List<Group> = listOf(

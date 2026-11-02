@@ -50,6 +50,8 @@ data class Settings(
     val quickPassId: String = "",
     /** Opening Pass Studio from its icon (or the side button) goes straight to that pass. */
     val openToPass: Boolean = true,
+    /** Themes move on the pass page (snow falling, fireworks...). */
+    val motion: Boolean = true,
 )
 
 data class AppData(
@@ -71,7 +73,8 @@ object DataJson {
         o.put("schedule", JSONObject().apply {
             d.schedule.forEach { (k, v) -> put(k.name, JSONObject().put("themeId", v.themeId).put("on", v.on)) }
         })
-        o.put("settings", JSONObject().put("quickPassId", d.settings.quickPassId).put("openToPass", d.settings.openToPass))
+        o.put("settings", JSONObject().put("quickPassId", d.settings.quickPassId).put("openToPass", d.settings.openToPass)
+            .put("motion", d.settings.motion))
         return o.toString()
     }
 
@@ -92,6 +95,7 @@ object DataJson {
         val settings = Settings(
             quickPassId = st?.optString("quickPassId", "") ?: "",
             openToPass = st?.optBoolean("openToPass", true) ?: true,
+            motion = st?.optBoolean("motion", true) ?: true,
         )
         return AppData(passes, themes, schedule, settings)
     }

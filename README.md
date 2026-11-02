@@ -8,6 +8,8 @@ page and changes on its own for the seasons and holidays. No accounts or setup: 
   screen goes to full brightness while it's up so the barcode scans, and it works with no signal. Scroll down for
   the details (Member ID and other lines, Nearby locations on Google Maps, website links).
 - **Themes:** 23 built-in themes (holidays, seasons, everyday scenes), or make your own from any color and art.
+  They move on the pass page: snow and leaves fall, fireworks go off, candles flicker, chimneys smoke, bats and
+  birds fly by. (They hold still if that's turned off in Settings or the phone has animations off.)
   Tap the palette on a pass to pick one, or leave it on **Automatic** to have it change with the seasons and
   holidays. Pick which theme each holiday and season gets, or turn holidays off.
 - **Logos:** pick a picture on the phone (a see-through PNG works best). It's trimmed, centered in the circle at the
