@@ -8,9 +8,16 @@ import android.content.Intent
 import android.net.Uri
 import android.service.quicksettings.TileService
 import android.view.WindowManager
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -66,9 +73,12 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import app.passstudio.PassTileService
 import app.passstudio.QuickAccess
 import app.passstudio.R
@@ -114,6 +124,8 @@ fun PassScreen(passId: String, onBack: () -> Unit, onEdit: () -> Unit, onSchedul
 
     val starred = d.settings.quickPassId == pass.id
     var pickingTheme by remember { mutableStateOf(false) }
+    // The barcode by itself on white, for the scanner (tap the barcode to open it).
+    var scanning by remember { mutableStateOf(false) }
     val code = pass.barcodeValue.trim()
     val screenHeight = LocalConfiguration.current.screenHeightDp
 
@@ -130,7 +142,7 @@ fun PassScreen(passId: String, onBack: () -> Unit, onEdit: () -> Unit, onSchedul
             alignment = Alignment.BottomCenter,
             modifier = Modifier.fillMaxSize(),
         )
-        ThemeMotion(theme.art, Modifier.fillMaxSize())
+        if (!scanning) ThemeMotion(theme.art, Modifier.fillMaxSize())
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding().navigationBarsPadding(),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -185,7 +197,7 @@ fun PassScreen(passId: String, onBack: () -> Unit, onEdit: () -> Unit, onSchedul
             }
             if (code.isNotEmpty()) {
                 Spacer(Modifier.height(22.dp))
-                PageBarcode(pass)
+                PageBarcode(pass) { scanning = true }
                 if (pass.showNumber) {
                     Spacer(Modifier.height(12.dp))
                     Text(
@@ -253,6 +265,9 @@ fun PassScreen(passId: String, onBack: () -> Unit, onEdit: () -> Unit, onSchedul
             Spacer(Modifier.height(28.dp))
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
+        AnimatedVisibility(scanning, enter = fadeIn(tween(160)), exit = fadeOut(tween(160))) {
+            ScanView(pass) { scanning = false }
+        }
     }
 
     if (pickingTheme) {
@@ -263,34 +278,129 @@ fun PassScreen(passId: String, onBack: () -> Unit, onEdit: () -> Unit, onSchedul
     }
 }
 
-/** The barcode on white, drawn at the exact size it shows at so it scans cleanly. */
+/** The barcode on white, drawn at the exact size it shows at so it scans cleanly. Tap it for the scan view. */
 @Composable
-private fun PageBarcode(pass: Pass) {
-    val code = pass.barcodeValue.trim()
+private fun PageBarcode(pass: Pass, onOpen: () -> Unit) {
     val square = Barcodes.isSquare(pass.barcodeType)
     Box(
         Modifier.padding(horizontal = 28.dp).fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(Color.White)
-            .padding(horizontal = 24.dp, vertical = 24.dp),
-        contentAlignment = Alignment.Center,
+            .clickable(onClickLabel = "Show the barcode bigger for scanning", onClick = onOpen),
     ) {
-        BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            val density = LocalDensity.current
-            val heightDp = if (square) minOf(maxWidth, 210.dp) else 118.dp
-            val widthDp = if (square) heightDp else maxWidth
-            val wPx = with(density) { widthDp.roundToPx() }
-            val hPx = with(density) { heightDp.roundToPx() }
-            val bitmap = remember(code, pass.barcodeType, wPx, hPx) { Barcodes.render(code, pass.barcodeType, wPx, hPx) }
-            if (bitmap != null) {
-                Image(
-                    bitmap = bitmap,
-                    contentDescription = "Barcode",
-                    contentScale = ContentScale.FillBounds,
-                    filterQuality = FilterQuality.None,
-                    modifier = Modifier.size(widthDp, heightDp),
-                )
-            } else {
-                Text("This number doesn't fit a ${Barcodes.label(pass.barcodeType)} barcode", color = Color(0xFFB3261E), fontSize = 14.sp)
+        BarcodeImage(pass, Modifier.fillMaxWidth().padding(24.dp)) { maxWidth ->
+            val h = if (square) minOf(maxWidth, 210.dp) else 118.dp
+            if (square) h to h else maxWidth to h
+        }
+        // A hint that it opens bigger, tucked in the corner.
+        Icon(
+            painterResource(R.drawable.ic_fullscreen),
+            contentDescription = null,
+            tint = Color(0xFFA8ADB3),
+            modifier = Modifier.align(Alignment.TopEnd).padding(9.dp).size(14.dp),
+        )
+    }
+}
+
+/**
+ * The barcode drawn at exactly the size it shows at ([size] gives width and height for the room there is), so every
+ * bar is a whole number of pixels wide and it scans cleanly.
+ */
+@Composable
+private fun BarcodeImage(pass: Pass, modifier: Modifier, size: (maxWidth: Dp) -> Pair<Dp, Dp>) {
+    val code = pass.barcodeValue.trim()
+    BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
+        val density = LocalDensity.current
+        val (widthDp, heightDp) = size(maxWidth)
+        val wPx = with(density) { widthDp.roundToPx() }
+        val hPx = with(density) { heightDp.roundToPx() }
+        val bitmap = remember(code, pass.barcodeType, wPx, hPx) { Barcodes.render(code, pass.barcodeType, wPx, hPx) }
+        if (bitmap != null) {
+            Image(
+                bitmap = bitmap,
+                contentDescription = "Barcode",
+                contentScale = ContentScale.FillBounds,
+                filterQuality = FilterQuality.None,
+                modifier = Modifier.size(widthDp, heightDp),
+            )
+        } else {
+            Text("This number doesn't fit a ${Barcodes.label(pass.barcodeType)} barcode", color = Color(0xFFB3261E), fontSize = 14.sp)
+        }
+    }
+}
+
+/**
+ * For the scanner at the register: the barcode by itself, as big as it goes, on a plain white screen at full
+ * brightness with the status and navigation bars out of the way. Tap anywhere (or go back) to return to the pass.
+ */
+@Composable
+private fun ScanView(pass: Pass, onClose: () -> Unit) {
+    BackHandler(onBack = onClose)
+    BrightestScreen()
+    val code = pass.barcodeValue.trim()
+    val square = Barcodes.isSquare(pass.barcodeType)
+    val dark = Color(0xFF202124)
+    Column(
+        Modifier.fillMaxSize().background(Color.White)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClickLabel = "Back to the pass",
+                onClick = onClose,
+            )
+            .padding(horizontal = 20.dp, vertical = 36.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 8.dp)) {
+            RoundLogo(pass, 46.dp, dark, 20.sp, Modifier.border(1.dp, Color(0xFFDADCE0), CircleShape))
+            Spacer(Modifier.width(14.dp))
+            Column {
+                Text(pass.title.ifBlank { "My pass" }, color = dark, fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
+                if (pass.header.isNotBlank()) Text(pass.header, color = Color(0xFF5F6368), fontSize = 16.sp)
             }
+        }
+        Spacer(Modifier.weight(1f))
+        // Long barcodes go the full width (wider bars scan from farther away), square ones as big as fits.
+        BarcodeImage(pass, Modifier.fillMaxWidth()) { maxWidth ->
+            if (square) minOf(maxWidth, 400.dp).let { it to it } else maxWidth to minOf(maxWidth * 0.5f, 240.dp)
+        }
+        if (pass.showNumber && code.isNotEmpty()) {
+            Spacer(Modifier.height(20.dp))
+            Text(
+                code,
+                color = dark,
+                style = TextStyle(fontSize = 27.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.5.sp, textAlign = TextAlign.Center),
+            )
+        }
+        Spacer(Modifier.weight(1f))
+        Text("Tap anywhere to go back", color = Color(0xFF80868B), fontSize = 15.sp)
+    }
+}
+
+/**
+ * The screen as bright as it goes (like the brightness slider all the way up) and kept on, with the status and
+ * navigation bars hidden; a swipe in from the edge brings them back for a moment. The bars come back when it closes;
+ * the pass page puts the brightness back when you leave it.
+ */
+@Composable
+private fun BrightestScreen() {
+    val view = LocalView.current
+    val activity = LocalContext.current.findActivity()
+    DisposableEffect(activity) {
+        val window = activity?.window ?: return@DisposableEffect onDispose { }
+        window.attributes = window.attributes.apply { screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_FULL }
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        val bars = WindowCompat.getInsetsController(window, view)
+        val oldStatus = bars.isAppearanceLightStatusBars
+        val oldNav = bars.isAppearanceLightNavigationBars
+        val oldBehavior = bars.systemBarsBehavior
+        bars.isAppearanceLightStatusBars = true
+        bars.isAppearanceLightNavigationBars = true
+        bars.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        bars.hide(WindowInsetsCompat.Type.systemBars())
+        onDispose {
+            bars.show(WindowInsetsCompat.Type.systemBars())
+            bars.systemBarsBehavior = oldBehavior
+            bars.isAppearanceLightStatusBars = oldStatus
+            bars.isAppearanceLightNavigationBars = oldNav
         }
     }
 }
