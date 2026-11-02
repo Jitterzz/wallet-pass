@@ -55,6 +55,8 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           mkdir -p keystore
+          # A space, line break or quotes picked up when pasting the password shouldn't stop it from working.
+          KEYSTORE_PASSWORD=$(printf '%s' "$KEYSTORE_PASSWORD" | tr -d '\r\n' | sed -E "s/^[[:space:]\"'\`]+//; s/[[:space:]\"'\`]+\$//")
           if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASSWORD" ]; then
             printf '%s' "$KEYSTORE_BASE64" | tr -d ' \r\n' | base64 -d > keystore/release.p12
             {
@@ -77,7 +79,7 @@ jobs:
               echo "signed=true" >> "$GITHUB_OUTPUT"
             else
               echo "signed=false" >> "$GITHUB_OUTPUT"
-              echo "::warning::KEYSTORE_PASSWORD doesn't open signing/release.p12. Check the secret. Building a debug-signed APK."
+              echo "::warning::KEYSTORE_PASSWORD doesn't open signing/release.p12 (it has to match exactly; paste it rather than typing it). Building a debug-signed APK."
             fi
           else
             echo "signed=false" >> "$GITHUB_OUTPUT"
