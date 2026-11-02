@@ -150,12 +150,7 @@ private fun LogoSpot(pass: Pass, ink: Color, compact: Boolean) {
             alignment = Alignment.CenterStart,
             modifier = Modifier.height(if (compact) 28.dp else 40.dp).widthIn(max = if (compact) 140.dp else 200.dp),
         )
-        round != null -> Image(
-            bitmap = round,
-            contentDescription = "Logo",
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.size(circle).clip(CircleShape).background(Color.White),
-        )
+        round != null -> RoundLogo(round, circle)
         else -> Box(
             Modifier.size(circle).clip(CircleShape).background(ink.copy(alpha = 0.18f)),
             contentAlignment = Alignment.Center,

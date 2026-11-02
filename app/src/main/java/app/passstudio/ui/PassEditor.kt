@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -63,6 +64,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -140,6 +142,18 @@ fun PassEditor(passId: String, onBack: () -> Unit, onSettings: () -> Unit, onSch
         }
     }
 
+    // Logos that don't fit their spot (uploaded before Pass Studio sized them, or pasted as a link) get cut off in
+    // Google Wallet: one tap makes a fitted copy.
+    var fitting by remember { mutableStateOf(false) }
+    val wideImage = rememberUrlImage(draft.wideLogoUrl)
+    val roundImage = rememberUrlImage(draft.logoUrl)
+    val misfits = remember(wideImage, roundImage) {
+        buildList {
+            if (wideImage != null && !LogoUpload.fits(wideImage.asAndroidBitmap(), LogoUpload.Kind.WIDE)) add(LogoUpload.Kind.WIDE)
+            if (roundImage != null && !LogoUpload.fits(roundImage.asAndroidBitmap(), LogoUpload.Kind.ROUND)) add(LogoUpload.Kind.ROUND)
+        }
+    }
+
     fun pickLogo(kind: LogoUpload.Kind) {
         if (!LogoUpload.hasToken(context)) {
             message = "Add your GitHub token in Settings to upload logos."
@@ -176,6 +190,31 @@ fun PassEditor(passId: String, onBack: () -> Unit, onSettings: () -> Unit, onSch
     fun leave() {
         commit()
         onBack()
+    }
+
+    fun fitLogos() {
+        if (!LogoUpload.hasToken(context)) {
+            message = "Add your GitHub token in Settings to fix logos."
+            return
+        }
+        val todo = misfits.associateWith { if (it == LogoUpload.Kind.WIDE) draft.wideLogoUrl else draft.logoUrl }
+        fitting = true
+        scope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    todo.mapValues { (kind, link) ->
+                        LogoUpload.refit(context.applicationContext, Store.data.value.settings, link, kind, passId)
+                    }
+                }
+            }
+            fitting = false
+            result.onSuccess { links ->
+                links[LogoUpload.Kind.WIDE]?.let { draft = draft.copy(wideLogoUrl = it) }
+                links[LogoUpload.Kind.ROUND]?.let { draft = draft.copy(logoUrl = it) }
+                val p = commit()
+                message = if (p.inWallet) "Logo fixed. It updates in Google Wallet in a moment." else "Logo fixed."
+            }.onFailure { message = it.message ?: "Couldn't fix the logo." }
+        }
     }
 
     fun addToWallet() {
@@ -346,12 +385,36 @@ fun PassEditor(passId: String, onBack: () -> Unit, onSettings: () -> Unit, onSch
                         "use a logo you have the right to use.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                LogoField("Top logo (wide)", draft.wideLogoUrl, "Best at 1280 × 400, light on dark colors",
-                    uploading = uploading == LogoUpload.Kind.WIDE, background = passColor, onPick = { pickLogo(LogoUpload.Kind.WIDE) }) {
+                if (misfits.isNotEmpty()) {
+                    Column(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.errorContainer)
+                            .padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Text(
+                            when {
+                                misfits.size == 2 -> "Your logos don't fit Google Wallet's logo spots, so they show up cut off."
+                                misfits[0] == LogoUpload.Kind.ROUND -> "Your round logo isn't square, so Google Wallet cuts it off in the circle."
+                                else -> "Your wide logo isn't the shape Google Wallet uses, so it shows up small or cut off."
+                            },
+                            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onErrorContainer,
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Button(onClick = { fitLogos() }, enabled = !fitting && uploading == null) {
+                                Text(if (misfits.size == 2) "Fix my logos" else "Fix my logo")
+                            }
+                            if (fitting) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                        }
+                    }
+                }
+                LogoField("Top logo (wide)", draft.wideLogoUrl, "Any PNG: it's fitted to 1280 × 400. Light logos show best on dark colors",
+                    uploading = uploading == LogoUpload.Kind.WIDE, background = passColor, round = false,
+                    onPick = { pickLogo(LogoUpload.Kind.WIDE) }) {
                     draft = draft.copy(wideLogoUrl = it.trim())
                 }
-                LogoField("Round logo", draft.logoUrl, "Square, at least 660 × 660; shown in a circle",
-                    uploading = uploading == LogoUpload.Kind.ROUND, background = passColor, onPick = { pickLogo(LogoUpload.Kind.ROUND) }) {
+                LogoField("Round logo", draft.logoUrl, "Any PNG: it's centered in a 660 × 660 circle with room to spare",
+                    uploading = uploading == LogoUpload.Kind.ROUND, background = passColor, round = true,
+                    onPick = { pickLogo(LogoUpload.Kind.ROUND) }) {
                     draft = draft.copy(logoUrl = it.trim())
                 }
             }
@@ -489,6 +552,7 @@ private fun LogoField(
     hint: String,
     uploading: Boolean,
     background: Color,
+    round: Boolean,
     onPick: () -> Unit,
     onChange: (String) -> Unit,
 ) {
@@ -517,7 +581,13 @@ private fun LogoField(
                     .background(background).padding(8.dp),
                 contentAlignment = Alignment.CenterStart,
             ) {
-                Image(bitmap = image, contentDescription = label, contentScale = ContentScale.Fit, modifier = Modifier.height(56.dp))
+                if (round) {
+                    // As Google Wallet shows it: cut into a circle.
+                    Image(bitmap = image, contentDescription = label, contentScale = ContentScale.Crop,
+                        modifier = Modifier.size(56.dp).clip(CircleShape).background(Color.White))
+                } else {
+                    Image(bitmap = image, contentDescription = label, contentScale = ContentScale.Fit, modifier = Modifier.height(56.dp))
+                }
             }
             else -> Text("Loading the picture… (if it never shows, check the link)",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

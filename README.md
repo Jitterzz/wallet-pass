@@ -15,7 +15,9 @@ their own for the seasons and holidays.
 - **Bring back passes:** after reinstalling or moving to a new phone, Settings brings back the passes already in
   Google Wallet, still linked so their themes keep changing.
 - **Logos:** a wide transparent PNG at the top of the pass, or a round logo. Pick a PNG on the phone and it's
-  sized for Google Wallet and uploaded to this repo's [`logos/`](logos) folder, or paste any public https link.
+  fitted to Google Wallet's logo spots (a 660 × 660 square with room around the logo for the round one, which
+  Google cuts into a circle; 1280 × 400 for the wide one) and uploaded to this repo's [`logos/`](logos) folder, or
+  paste any public https link. A logo that doesn't fit its spot gets a **Fix my logo** button in the pass editor.
 
 ## How it works
 

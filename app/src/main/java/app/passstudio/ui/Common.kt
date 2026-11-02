@@ -2,9 +2,6 @@ package app.passstudio.ui
 
 import android.graphics.BitmapFactory
 import androidx.compose.ui.platform.LocalContext
-import java.security.MessageDigest
-import java.io.File
-import android.content.Context
 import android.util.LruCache
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -38,11 +35,13 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
@@ -52,6 +51,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.passstudio.data.Catalog
 import app.passstudio.data.PassTheme
+import app.passstudio.wallet.LogoUpload
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
@@ -212,12 +212,6 @@ fun ThemeTile(theme: PassTheme, selected: Boolean, onClick: () -> Unit, modifier
 
 private val imageCache = LruCache<String, ImageBitmap>(24)
 
-/** Where a link's picture is kept on the phone, so logos still show with no signal (in a store, say). */
-private fun savedLogo(context: Context, link: String): File {
-    val name = MessageDigest.getInstance("SHA-1").digest(link.toByteArray()).joinToString("") { "%02x".format(it) }
-    return File(File(context.applicationContext.filesDir, "logo_cache").apply { mkdirs() }, name)
-}
-
 /**
  * Loads a picture from an https link: from memory, else from the copy kept on the phone, else from the internet
  * (keeping a copy). Null while loading or if it can't be loaded.
@@ -232,7 +226,7 @@ fun rememberUrlImage(url: String): ImageBitmap? {
         value = cached
         if (value == null && link.startsWith("https://")) {
             val loaded = withContext(Dispatchers.IO) {
-                val file = savedLogo(context, link)
+                val file = LogoUpload.cacheFile(context, link)
                 val fromPhone = runCatching { if (file.exists()) BitmapFactory.decodeFile(file.path) else null }.getOrNull()
                 fromPhone?.asImageBitmap() ?: runCatching {
                     val c = URL(link).openConnection() as HttpURLConnection
@@ -253,4 +247,20 @@ fun rememberUrlImage(url: String): ImageBitmap? {
         }
     }
     return image
+}
+
+/**
+ * A round logo in its circle. One that fits the round spot fills it, as in Google Wallet; one that doesn't (an older
+ * upload, or a wide picture) is shown whole inside a white circle instead of being cut off.
+ */
+@Composable
+fun RoundLogo(image: ImageBitmap, size: androidx.compose.ui.unit.Dp, modifier: Modifier = Modifier) {
+    val fits = remember(image) { runCatching { LogoUpload.fits(image.asAndroidBitmap(), LogoUpload.Kind.ROUND) }.getOrDefault(true) }
+    Box(modifier.size(size).clip(CircleShape).background(Color.White), contentAlignment = Alignment.Center) {
+        if (fits) {
+            Image(image, contentDescription = "Logo", contentScale = ContentScale.Crop, modifier = Modifier.size(size))
+        } else {
+            Image(image, contentDescription = "Logo", contentScale = ContentScale.Fit, modifier = Modifier.size(size * 0.72f))
+        }
+    }
 }

@@ -261,8 +261,7 @@ private fun PageLogo(pass: Pass, ink: Color) {
     val wide = rememberUrlImage(pass.wideLogoUrl)
     val circle = Modifier.size(104.dp).clip(CircleShape)
     when {
-        round != null -> Image(round, contentDescription = "Logo", contentScale = ContentScale.Crop,
-            modifier = circle.background(Color.White))
+        round != null -> RoundLogo(round, 104.dp)
         wide != null -> Box(circle.background(Color.White), contentAlignment = Alignment.Center) {
             Image(wide, contentDescription = "Logo", contentScale = ContentScale.Fit, modifier = Modifier.fillMaxWidth().padding(14.dp))
         }
@@ -309,7 +308,7 @@ private fun PageBarcode(pass: Pass) {
 private fun Glass(darkArt: Boolean, content: @Composable ColumnScope.() -> Unit) {
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-            .background(if (darkArt) Color.Black.copy(alpha = 0.36f) else Color.White.copy(alpha = 0.62f)),
+            .background(if (darkArt) Color.Black.copy(alpha = 0.44f) else Color.White.copy(alpha = 0.68f)),
         content = content,
     )
 }
