@@ -179,7 +179,7 @@ private fun DrawScope.shape(path: Path, x: Float, y: Float, size: Float, rot: Fl
 // ---------- falling and rising things ----------
 
 /** What falls: snow, leaves, petals, confetti... */
-enum class Piece { SNOW, FLAKE, MAPLE, PETAL, CONFETTI, HEART, SHAMROCK }
+enum class Piece { SNOW, FLAKE, MAPLE, PETAL, CONFETTI, HEART, SHAMROCK, COIN }
 
 private fun DrawScope.piece(p: Piece, x: Float, y: Float, s: Float, rot: Float, phase: Float, c: Color, a: Float) {
     when (p) {
@@ -205,6 +205,11 @@ private fun DrawScope.piece(p: Piece, x: Float, y: Float, s: Float, rot: Float, 
         }
         Piece.HEART -> shape(HEART, x, y, s, rot, c, a)
         Piece.SHAMROCK -> for (k in 0 until 3) shape(HEART, x, y, s * 0.8f, rot + k * 120f, c, a)
+        Piece.COIN -> withTransform({ translate(x, y); scale(abs(cos(phase * 2.5f)) + 0.08f, 1f, Offset.Zero) }) {
+            drawCircle(Color(0xFFE0A800), s / 2f, Offset.Zero, a)
+            drawCircle(Color(0xFFFFCF33), s * 0.38f, Offset.Zero, a)
+            drawCircle(Color(0xFFFFF3B0), s * 0.12f, Offset(-s * 0.14f, -s * 0.14f), a * 0.9f)
+        }
     }
 }
 
@@ -272,7 +277,7 @@ private fun pulse(points: FloatArray, color: Long, reach: Float, strength: Float
     var i = 0
     while (i + 2 < points.size) {
         val f = 0.5f + 0.5f * sin(t * speed + i)
-        d.glow(m.at(points[i], points[i + 1]), m.d(points[i + 2] * reach * (0.92f + 0.08f * f)), Color(color), strength * (0.55f + 0.45f * f))
+        d.glow(m.at(points[i], points[i + 1]), m.d(points[i + 2] * reach * (0.82f + 0.24f * f)), Color(color), strength * (0.45f + 0.55f * f))
         i += 3
     }
 }
@@ -376,8 +381,11 @@ private fun crackle(points: FloatArray, seed: Int) = Motion { d, t, m ->
 
 // ---------- things in the sky ----------
 
-/** Fireworks: [n] shells at a time going up and bursting, each somewhere new, in the given areas. */
-private fun fireworks(n: Int, colors: LongArray, seed: Int, areas: Array<FloatArray>, period: Float = 2.8f) = Motion { d, t, m ->
+/**
+ * Fireworks: [n] shells at a time going up and bursting, each somewhere new in the given areas: a flash, a ring of
+ * trails in one color with an inner ring in another, then glitter as it fades and falls.
+ */
+private fun fireworks(n: Int, colors: LongArray, seed: Int, areas: Array<FloatArray>, period: Float = 2.4f) = Motion { d, t, m ->
     for (i in 0 until n) {
         val u = (t + i * period / n + hash(seed, i) * 0.5f) / period
         val cycle = floor(u).toInt()
@@ -386,27 +394,35 @@ private fun fireworks(n: Int, colors: LongArray, seed: Int, areas: Array<FloatAr
         val cx = area[0] + hash(seed, cycle * 11 + i) * (area[2] - area[0])
         val cy = area[1] + hash(seed, cycle * 13 + i) * (area[3] - area[1])
         val color = Color(colors[(hash(seed, cycle * 17 + i) * colors.size).toInt().coerceIn(0, colors.size - 1)])
-        val radius = 70f + 80f * hash(seed, cycle * 19 + i)
-        if (p < 0.2f) {
-            val q = p / 0.2f
-            val sy = cy + 260f * (1f - q)
-            d.drawLine(color, m.at(cx, sy + 46f), m.at(cx, sy), m.d(3f), StrokeCap.Round, alpha = 0.6f)
-            d.drawCircle(Color.White, m.d(3.2f), m.at(cx, sy), 0.95f)
+        val inner = Color(colors[(hash(seed, cycle * 23 + i) * colors.size).toInt().coerceIn(0, colors.size - 1)])
+        // A fifth number on an area scales the bursts there (smaller beside the logo, so the text stays clear).
+        val radius = (120f + 110f * hash(seed, cycle * 19 + i)) * (if (area.size > 4) area[4] else 1f)
+        if (p < 0.16f) {
+            val q = p / 0.16f
+            val sy = cy + 320f * (1f - q)
+            d.drawLine(color, m.at(cx, sy + 70f), m.at(cx, sy), m.d(4f), StrokeCap.Round, alpha = 0.7f)
+            d.glow(m.at(cx, sy), m.d(16f), Color.White, 0.9f)
         } else {
-            val q = (p - 0.2f) / 0.8f
+            val q = (p - 0.16f) / 0.84f
             val r = radius * (1f - (1f - q).pow(3))
-            val a = (1f - q).pow(1.4f)
-            val sag = 46f * q * q
-            d.glow(m.at(cx, cy), m.d(r * 1.5f + 1f), color, 0.3f * a)
-            val rays = 22
+            val a = (1f - q).pow(1.2f)
+            val sag = 60f * q * q
+            if (q < 0.25f) d.glow(m.at(cx, cy), m.d(radius * 0.9f), Color.White, 0.55f * (1f - q / 0.25f))
+            d.glow(m.at(cx, cy), m.d(r * 1.6f + 1f), color, 0.38f * a)
+            val rays = 28
             val turn = hash(seed, cycle + 5) * 0.3f
             for (k in 0 until rays) {
                 val ang = 2f * PI.toFloat() * k / rays + turn
                 val ex = cx + r * cos(ang)
                 val ey = cy + r * sin(ang) + sag
-                d.drawLine(color, m.at(cx + r * 0.7f * cos(ang), cy + r * 0.7f * sin(ang) + sag * 0.6f), m.at(ex, ey), m.d(2.8f),
+                d.drawLine(color, m.at(cx + r * 0.62f * cos(ang), cy + r * 0.62f * sin(ang) + sag * 0.6f), m.at(ex, ey), m.d(4.2f),
                     StrokeCap.Round, alpha = a)
-                d.drawCircle(Color.White, m.d(2.4f), m.at(ex, ey), a)
+                d.drawCircle(Color.White, m.d(3.6f), m.at(ex, ey), a)
+                val ir = r * 0.55f
+                d.drawCircle(inner, m.d(3.4f), m.at(cx + ir * cos(ang + 0.11f), cy + ir * sin(ang + 0.11f) + sag * 0.5f), a)
+                if (q > 0.45f && hash(seed, cycle * 29 + k + floor(t * 12f).toInt()) > 0.55f) {
+                    d.drawCircle(Color(0xFFFFF6D6), m.d(2.6f), m.at(ex + 6f * cos(ang * 3f), ey + 14f), a)
+                }
             }
         }
     }
@@ -618,6 +634,139 @@ private fun motes(n: Int, color: Long, seed: Int) = Motion { d, t, m ->
     }
 }
 
+// ---------- more moving parts ----------
+
+/** Long soft rays turning slowly around a sun. */
+private fun sunRays(points: FloatArray, color: Long, reach: Float = 5.5f, n: Int = 12) = Motion { d, t, m ->
+    val path = Path()
+    var i = 0
+    while (i + 2 < points.size) {
+        val cx = points[i]
+        val cy = points[i + 1]
+        val len = points[i + 2] * reach
+        val c = m.at(cx, cy)
+        for (k in 0 until n) {
+            val a = t * 0.12f + 2f * PI.toFloat() * k / n
+            val w = 0.07f + 0.03f * sin(t * 0.9f + k)
+            path.reset()
+            path.moveTo(c.x, c.y)
+            path.lineTo(m.x(cx + len * cos(a - w)), m.y(cy + len * sin(a - w)))
+            path.lineTo(m.x(cx + len * cos(a + w)), m.y(cy + len * sin(a + w)))
+            path.close()
+            val alpha = 0.2f + 0.12f * sin(t * 1.3f + k * 1.7f)
+            d.drawPath(path, Brush.radialGradient(listOf(Color(color).copy(alpha = alpha), Color.Transparent), c, m.d(len)))
+        }
+        i += 3
+    }
+}
+
+/** Puffy clouds drifting across. */
+private fun clouds(n: Int, y0: Float, y1: Float, speed: Float, color: Long, seed: Int, size: ClosedFloatingPointRange<Float> = 90f..150f) =
+    Motion { d, t, m ->
+        val span = ART_W + 600f
+        val c = Color(color)
+        for (i in 0 until n) {
+            val s = size.start + (size.endInclusive - size.start) * hash(seed, i)
+            val x = -300f + frac(hash(seed, i + 10) + t * speed * (0.7f + 0.6f * hash(seed, i + 20)) / span) * span
+            val y = y0 + hash(seed, i + 30) * (y1 - y0)
+            d.drawCircle(c, m.d(0.35f * s), m.at(x - 0.5f * s, y))
+            d.drawCircle(c, m.d(0.5f * s), m.at(x, y - 0.2f * s))
+            d.drawCircle(c, m.d(0.33f * s), m.at(x + 0.55f * s, y + 0.02f * s))
+            d.drawRoundRect(c, m.at(x - 0.85f * s, y), Size(m.d(1.7f * s), m.d(0.35f * s)), CornerRadius(m.d(0.17f * s)))
+        }
+    }
+
+/** Hot-air balloons drifting slowly across and bobbing. */
+private fun balloons(n: Int, y0: Float, y1: Float, seed: Int) = Motion { d, t, m ->
+    val span = ART_W + 400f
+    val sets = arrayOf(longArrayOf(0xFFFF5E5B, 0xFFFFD166), longArrayOf(0xFF3FA9F5, 0xFFFFFFFF), longArrayOf(0xFFB07CF2, 0xFFFF8FAB),
+        longArrayOf(0xFF7BD389, 0xFFFFD166))
+    for (i in 0 until n) {
+        val k = 0.7f + 0.5f * hash(seed, i)
+        val x = -200f + frac(hash(seed, i + 5) + t * 16f * (0.7f + 0.6f * hash(seed, i + 9)) / span) * span
+        val y = y0 + hash(seed, i + 13) * (y1 - y0) + sin(t * 0.6f + i * 2f) * 22f
+        val (c1, c2) = sets[i % sets.size].let { Color(it[0]) to Color(it[1]) }
+        val w = m.d(110f * k)
+        val h = m.d(130f * k)
+        val c = m.at(x, y)
+        d.drawLine(Color(0xFF6B4A2A), Offset(c.x - w * 0.15f, c.y + h * 0.45f), Offset(c.x - w * 0.1f, c.y + h * 0.7f), m.d(2f))
+        d.drawLine(Color(0xFF6B4A2A), Offset(c.x + w * 0.15f, c.y + h * 0.45f), Offset(c.x + w * 0.1f, c.y + h * 0.7f), m.d(2f))
+        d.drawRoundRect(Color(0xFFA8743A), Offset(c.x - w * 0.12f, c.y + h * 0.68f), Size(w * 0.24f, h * 0.16f), CornerRadius(m.d(3f)))
+        d.drawOval(c1, Offset(c.x - w / 2f, c.y - h / 2f), Size(w, h))
+        d.drawOval(c2, Offset(c.x - w * 0.2f, c.y - h / 2f), Size(w * 0.4f, h))
+        d.drawOval(Color.White.copy(alpha = 0.3f), Offset(c.x - w * 0.36f, c.y - h * 0.32f), Size(w * 0.14f, h * 0.36f))
+    }
+}
+
+/** Cars crossing a bridge at night: headlights going one way, tail lights the other. */
+private fun traffic(x0: Float, x1: Float, y: Float, seed: Int) = Motion { d, t, m ->
+    val span = x1 - x0
+    for (lane in 0..1) {
+        for (i in 0 until 7) {
+            val p = frac(hash(seed, i + lane * 20) + t * (110f + 40f * hash(seed, i + 50)) / span)
+            val x = if (lane == 0) x0 + p * span else x1 - p * span
+            val yy = y + lane * 8f
+            val c = if (lane == 0) Color(0xFFFFF3C4) else Color(0xFFFF5A5A)
+            d.glow(m.at(x, yy), m.d(18f), c, 0.6f)
+            d.drawRoundRect(c, Offset(m.x(x - 10f), m.y(yy - 2f)), Size(m.d(20f), m.d(4f)), CornerRadius(m.d(2f)))
+        }
+    }
+}
+
+private val GHOST: Path by lazy {
+    parse("M-0.45,0.55 L-0.45,-0.05 C-0.45,-0.33 -0.25,-0.55 0,-0.55 C0.25,-0.55 0.45,-0.33 0.45,-0.05 L0.45,0.55 " +
+        "Q0.34,0.42 0.22,0.56 Q0.11,0.42 0,0.56 Q-0.11,0.42 -0.22,0.56 Q-0.34,0.42 -0.45,0.55Z")
+}
+
+/** Little ghosts floating across, bobbing as they go. */
+private fun ghosts(n: Int, y0: Float, y1: Float, seed: Int) = Motion { d, t, m ->
+    val span = ART_W + 400f
+    for (i in 0 until n) {
+        val s = m.d(70f + 50f * hash(seed, i))
+        val p = frac(hash(seed, i + 3) + t * 34f * (0.7f + 0.6f * hash(seed, i + 6)) / span)
+        val x = if (i % 2 == 0) -200f + p * span else ART_W + 200f - p * span
+        val y = y0 + hash(seed, i + 9) * (y1 - y0) + sin(t * 1.6f + i * 2f) * 26f
+        val c = m.at(x, y)
+        d.glow(c, s * 1.1f, Color(0xFFE8F0FF), 0.25f)
+        d.withTransform({ translate(c.x, c.y); rotate(sin(t * 1.6f + i) * 8f, Offset.Zero); scale(s, s, Offset.Zero) }) {
+            drawPath(GHOST, Color(0xFFF4F6FF), alpha = 0.92f)
+            drawOval(Color(0xFF2A2140), Offset(-0.22f, -0.15f), Size(0.14f, 0.2f))
+            drawOval(Color(0xFF2A2140), Offset(0.08f, -0.15f), Size(0.14f, 0.2f))
+            drawOval(Color(0xFF2A2140), Offset(-0.07f, 0.07f), Size(0.14f, 0.18f))
+        }
+    }
+}
+
+/** Rows of little waves rolling along the water. */
+private fun waves(rows: FloatArray, speed: Float, color: Long, alpha: Float) = Motion { d, t, m ->
+    val path = Path()
+    rows.forEachIndexed { r, y ->
+        for (k in 0 until 14) {
+            val dir = if (r % 2 == 0) 1f else -0.7f
+            val x = frac(k / 14f + t * speed * dir / ART_W + r * 0.37f) * (ART_W + 80f) - 40f
+            val yy = y + 6f * sin(t * 1.4f + k + r)
+            path.reset()
+            path.moveTo(m.x(x), m.y(yy))
+            path.quadraticTo(m.x(x + 18f), m.y(yy - 13f), m.x(x + 36f), m.y(yy))
+            d.drawPath(path, Color(color), alpha = alpha, style = Stroke(width = m.d(4.5f), cap = StrokeCap.Round))
+        }
+    }
+}
+
+/** Water pouring down a waterfall, with spray at the bottom. */
+private fun waterfall(x: Float, y0: Float, y1: Float, w: Float) = Motion { d, t, m ->
+    for (k in 0 until 12) {
+        val lx = x - w / 2f + w * hash(91, k)
+        val p = frac(t * 1.4f + k / 12f)
+        val yy = y0 + p * (y1 - y0)
+        d.drawLine(Color.White, m.at(lx, yy), m.at(lx, min(y1, yy + 34f)), m.d(3f), StrokeCap.Round, alpha = 0.85f)
+    }
+    for (k in 0 until 6) {
+        val p = frac(t * 0.8f + k / 6f)
+        d.drawCircle(Color.White, m.d(10f + 18f * p), m.at(x + (hash(92, k) - 0.5f) * w * 2.4f, y1 - p * 30f), 0.5f * (1f - p))
+    }
+}
+
 // ---------- each theme's moving parts ----------
 
 private val LEAVES = longArrayOf(0xFFC8462A, 0xFFE07B2A, 0xFFB5341F, 0xFFF0A43A, 0xFFD9622A, 0xFFA8321C)
@@ -632,141 +781,174 @@ object Motions {
     fun of(art: String): List<Motion> {
         fun a(kind: String) = ThemeAnchors.of(art, kind)
         fun water(): Float = a("water").let { if (it.size >= 3) it[1] else ART_H }
+        val sideSkies = arrayOf(floatArrayOf(40f, 320f, 230f, 520f, 0.6f), floatArrayOf(802f, 320f, 992f, 520f, 0.6f))
         return when (art) {
             "thanksgiving" -> listOf(
-                pulse(a("sun"), 0xFFFFD27A, 3.2f, 0.32f),
+                sunRays(a("sun"), 0xFFFFE2A0),
+                pulse(a("sun"), 0xFFFFD27A, 3.6f, 0.45f),
                 smoke(a("smoke")),
-                flicker(a("window"), WARM, 2.4f, 0.4f, 0.4f),
-                geese(1610f, 0xFF3A1620, 3),
-                fall(Piece.MAPLE, 22, 70f, 40f, 18f..34f, LEAVES, 1),
+                flicker(a("window"), WARM, 3f, 0.6f, 0.5f),
+                geese(1610f, 0xFF3A1620, 3, 14f),
+                geese(560f, 0xFF1D0F22, 4, 19f),
+                fall(Piece.MAPLE, 44, 105f, 70f, 26f..50f, LEAVES, 1),
             )
             "halloween" -> listOf(
-                twinkle(26, SKY_TOP, BAND + 300f, 0xFFFFFFFF, 9f, 2),
-                flicker(a("window"), 0xFFFFB84A, 2.4f, 0.45f),
-                flicker(a("lantern"), 0xFFFF9A2A, 2.4f, 0.5f),
-                flyers(Flyer.BAT, 4, BAND + 40f, BAND + 420f, 120f, 46f, 0xFF0A0612, 3),
-                flyers(Flyer.BAT, 2, 330f, 560f, 90f, 34f, 0xFF2E1A4A, 4, leftward = true),
+                twinkle(40, SKY_TOP, BAND + 300f, 0xFFFFFFFF, 14f, 2),
+                pulse(floatArrayOf(720f, BAND + 235f, 125f), 0xFFFFF3C4, 1.9f, 0.5f, 1.2f),
+                flicker(a("window"), 0xFFFFB84A, 3.4f, 0.7f),
+                flicker(a("lantern"), 0xFFFF9A2A, 3f, 0.75f, 1.3f),
+                ghosts(3, BAND + 160f, BAND + 520f, 50),
+                flyers(Flyer.BAT, 8, BAND + 20f, BAND + 460f, 170f, 70f, 0xFF0A0612, 3),
+                flyers(Flyer.BAT, 4, 300f, 580f, 140f, 56f, 0xFF3A2160, 4, leftward = true),
             )
             "dia_de_muertos" -> listOf(
-                twinkle(16, SKY_TOP, BAND + 260f, 0xFFFFE9C4, 8f, 5),
-                bulbs(a("bulb")),
-                flicker(a("flame"), 0xFFFFB347, 4f, 0.55f, 1.2f),
-                fall(Piece.PETAL, 28, 55f, 30f, 12f..18f, MARIGOLD, 6),
+                twinkle(26, SKY_TOP, BAND + 260f, 0xFFFFE9C4, 13f, 5),
+                bulbs(a("bulb"), 3.4f, 36f),
+                flicker(a("flame"), 0xFFFFB347, 5.5f, 0.85f, 1.4f),
+                fall(Piece.PETAL, 60, 80f, 50f, 18f..30f, MARIGOLD, 6),
             )
             "christmas" -> listOf(
-                twinkle(20, SKY_TOP, BAND + 300f, 0xFFFFFFFF, 8f, 7),
+                twinkle(34, SKY_TOP, BAND + 300f, 0xFFFFFFFF, 13f, 7),
+                pulse(floatArrayOf(800f, BAND + 200f, 122f), 0xFFFFF6D6, 1.9f, 0.45f, 1.1f),
+                shootingStars(51, 300f, 900f, 7f),
                 smoke(a("smoke")),
-                flicker(a("window"), 0xFFFFD27A, 2.2f, 0.4f, 0.5f),
-                bulbs(a("bulb")),
-                bulbs(a("light"), 3.4f, 20f),
-                pulse(a("star"), 0xFFFFF3B0, 1.4f, 0.6f, 2f),
-                fall(Piece.SNOW, 70, 60f, 26f, 4f..9f, longArrayOf(0xFFFFFFFF), 8, 0.85f),
-                fall(Piece.FLAKE, 10, 45f, 40f, 16f..26f, longArrayOf(0xFFFFFFFF), 9, 0.9f, 40f),
+                flicker(a("window"), 0xFFFFD27A, 3f, 0.6f, 0.6f),
+                bulbs(a("bulb"), 3.4f, 36f),
+                bulbs(a("light"), 4.4f, 32f),
+                pulse(a("star"), 0xFFFFF3B0, 1.8f, 0.85f, 2.4f),
+                fall(Piece.SNOW, 150, 85f, 40f, 6f..14f, longArrayOf(0xFFFFFFFF), 8, 0.9f),
+                fall(Piece.FLAKE, 26, 60f, 60f, 26f..44f, longArrayOf(0xFFFFFFFF), 9, 0.95f, 60f),
             )
             "new_year" -> listOf(
-                twinkle(20, SKY_TOP, BAND + 380f, 0xFFFFFFFF, 8f, 10),
-                fireworks(3, CONFETTI, 11, arrayOf(floatArrayOf(60f, 300f, 300f, 520f), floatArrayOf(720f, 300f, 980f, 520f),
-                    floatArrayOf(100f, BAND + 80f, 930f, BAND + 380f))),
-                shimmer(water(), ART_H, 18, 0xFFFFD27A, 12),
-                fall(Piece.CONFETTI, 34, 80f, 30f, 10f..18f, CONFETTI, 13, spin = 200f),
+                twinkle(30, SKY_TOP, BAND + 380f, 0xFFFFFFFF, 13f, 10),
+                fireworks(5, CONFETTI, 11, sideSkies + floatArrayOf(100f, BAND + 80f, 930f, BAND + 380f)),
+                shimmer(water(), ART_H, 30, 0xFFFFD27A, 12),
+                fall(Piece.CONFETTI, 80, 115f, 50f, 16f..28f, CONFETTI, 13, spin = 260f),
             )
             "valentines" -> listOf(
-                twinkle(16, SKY_TOP, BAND + 300f, 0xFFFFFFFF, 10f, 14),
-                rise(Piece.HEART, 16, 70f, 30f, 22f..44f, longArrayOf(0xFFFF6B8B, 0xFFFF8FAB, 0xFFE5486E, 0xFFFFFFFF), 15),
-                fall(Piece.PETAL, 12, 45f, 30f, 12f..18f, longArrayOf(0xFFE5486E, 0xFFFF6B8B, 0xFFD6234A), 16),
+                twinkle(26, SKY_TOP, BAND + 300f, 0xFFFFFFFF, 15f, 14),
+                rise(Piece.HEART, 32, 110f, 50f, 32f..70f, longArrayOf(0xFFFF6B8B, 0xFFFF8FAB, 0xFFE5486E, 0xFFFFFFFF, 0xFFFF4D6D), 15),
+                fall(Piece.PETAL, 30, 70f, 50f, 18f..28f, longArrayOf(0xFFE5486E, 0xFFFF6B8B, 0xFFD6234A), 16),
             )
             "st_patricks" -> listOf(
-                twinkle(26, SKY_TOP, ART_H - 100f, 0xFFFFE28A, 10f, 17),
-                pulse(a("glow"), 0xFFFFE066, 1.6f, 0.45f, 1.6f),
+                clouds(3, 300f, 560f, 22f, 0xFFFFFFFF, 52),
+                twinkle(40, SKY_TOP, ART_H - 100f, 0xFFFFE28A, 15f, 17),
+                pulse(a("glow"), 0xFFFFE066, 1.9f, 0.7f, 2f),
                 smoke(a("smoke")),
-                fall(Piece.SHAMROCK, 8, 40f, 40f, 22f..34f, longArrayOf(0xFF2F9A4F, 0xFF3CAE5C, 0xFF24804A), 18),
+                fall(Piece.COIN, 22, 110f, 30f, 22f..34f, longArrayOf(0xFFFFCF33), 53),
+                fall(Piece.SHAMROCK, 18, 70f, 60f, 30f..48f, longArrayOf(0xFF2F9A4F, 0xFF3CAE5C, 0xFF24804A), 18),
             )
             "easter" -> listOf(
-                pulse(a("sun"), 0xFFFFF3C4, 3f, 0.3f),
-                butterflies(4, 120f, 910f, BAND + 300f, BAND + 700f, longArrayOf(0xFFFF9FCE, 0xFFFFD1E8, 0xFF9CC7FF, 0xFFD6E7FF,
-                    0xFFFFD166, 0xFFFFF1B8, 0xFFB79CFF, 0xFFE2D6FF), 19),
-                fall(Piece.PETAL, 14, 40f, 40f, 10f..16f, longArrayOf(0xFFFFFFFF, 0xFFFFD1E8, 0xFFFFF3A6), 20),
+                sunRays(a("sun"), 0xFFFFF6D6),
+                pulse(a("sun"), 0xFFFFF3C4, 3.4f, 0.45f),
+                clouds(3, 300f, 560f, 22f, 0xFFFFFFFF, 54),
+                butterflies(8, 60f, 970f, 300f, BAND + 720f, longArrayOf(0xFFFF9FCE, 0xFFFFD1E8, 0xFF9CC7FF, 0xFFD6E7FF,
+                    0xFFFFD166, 0xFFFFF1B8, 0xFFB79CFF, 0xFFE2D6FF), 19, 50f),
+                fall(Piece.PETAL, 34, 60f, 60f, 16f..26f, longArrayOf(0xFFFFFFFF, 0xFFFFD1E8, 0xFFFFF3A6), 20),
             )
             "cinco_de_mayo" -> listOf(
-                pulse(a("sun"), 0xFFFFD27A, 2.6f, 0.3f),
-                bulbs(a("bulb")),
-                flicker(a("window"), WARM, 2f, 0.4f, 0.5f),
-                fall(Piece.CONFETTI, 30, 70f, 30f, 10f..18f, FIESTA, 21, spin = 200f),
+                sunRays(a("sun"), 0xFFFFE2A0),
+                pulse(a("sun"), 0xFFFFD27A, 3f, 0.45f),
+                bulbs(a("bulb"), 3.4f, 36f),
+                flicker(a("window"), WARM, 2.6f, 0.6f, 0.6f),
+                fall(Piece.CONFETTI, 70, 100f, 50f, 16f..28f, FIESTA, 21, spin = 260f),
             )
             "july_4" -> listOf(
-                twinkle(26, SKY_TOP, BAND + 300f, 0xFFFFFFFF, 8f, 22),
-                fireworks(3, longArrayOf(0xFFFF4D5E, 0xFFFFFFFF, 0xFF4D8DFF, 0xFFFFD36B), 23, arrayOf(
-                    floatArrayOf(60f, 300f, 300f, 520f), floatArrayOf(720f, 300f, 980f, 520f), floatArrayOf(100f, BAND + 80f, 930f, BAND + 340f))),
-                shimmer(water(), BAND + 720f, 16, 0xFFFFFFFF, 24),
+                twinkle(40, SKY_TOP, BAND + 300f, 0xFFFFFFFF, 13f, 22),
+                fireworks(5, longArrayOf(0xFFFF4D5E, 0xFFFFFFFF, 0xFF4D8DFF, 0xFFFFD36B), 23,
+                    sideSkies + floatArrayOf(100f, BAND + 80f, 930f, BAND + 340f)),
+                shimmer(water(), BAND + 720f, 26, 0xFFFFFFFF, 24),
                 crackle(a("sparkler"), 25),
             )
             "spring" -> listOf(
-                pulse(a("sun"), 0xFFFFF3C4, 3f, 0.3f),
-                butterflies(3, 120f, 910f, BAND + 250f, BAND + 650f, longArrayOf(0xFFFFB0CC, 0xFFFFD6E6, 0xFFFFD166, 0xFFFFF1B8,
-                    0xFF9CC7FF, 0xFFD6E7FF), 26),
-                fall(Piece.PETAL, 30, 45f, 50f, 12f..18f, longArrayOf(0xFFFFC2D9, 0xFFFFB0CC, 0xFFFFD6E6), 27),
+                sunRays(a("sun"), 0xFFFFF6D6),
+                pulse(a("sun"), 0xFFFFF3C4, 3.4f, 0.45f),
+                clouds(3, 300f, 560f, 22f, 0xFFFFFFFF, 55),
+                butterflies(7, 60f, 970f, 300f, BAND + 680f, longArrayOf(0xFFFFB0CC, 0xFFFFD6E6, 0xFFFFD166, 0xFFFFF1B8,
+                    0xFF9CC7FF, 0xFFD6E7FF), 26, 48f),
+                fall(Piece.PETAL, 70, 70f, 80f, 18f..30f, longArrayOf(0xFFFFC2D9, 0xFFFFB0CC, 0xFFFFD6E6, 0xFFFF9CBF), 27),
             )
             "summer" -> listOf(
-                pulse(a("sun"), 0xFFFFE0A0, 3f, 0.35f),
-                shimmer(water(), BAND + 620f, 26, 0xFFFFFFFF, 28),
-                flyers(Flyer.BIRD, 3, BAND + 120f, BAND + 360f, 70f, 34f, 0xFFFFFFFF, 29),
+                sunRays(a("sun"), 0xFFFFE6A8),
+                pulse(a("sun"), 0xFFFFE0A0, 3.6f, 0.5f),
+                clouds(3, 300f, 560f, 24f, 0xFFFFFFFF, 56),
+                waves(floatArrayOf(BAND + 450f, BAND + 500f, BAND + 550f, BAND + 590f), 50f, 0xFFFFFFFF, 0.6f),
+                shimmer(water(), BAND + 620f, 40, 0xFFFFFFFF, 28),
+                flyers(Flyer.BIRD, 6, BAND + 100f, BAND + 380f, 90f, 50f, 0xFFFFFFFF, 29),
             )
             "fall" -> listOf(
-                pulse(a("sun"), 0xFFFFE0A8, 3f, 0.3f),
-                flicker(a("lamp"), 0xFFFFD98A, 2.6f, 0.35f, 0.4f),
-                fall(Piece.MAPLE, 26, 70f, 40f, 18f..32f, LEAVES, 30),
+                sunRays(a("sun"), 0xFFFFE6B8),
+                pulse(a("sun"), 0xFFFFE0A8, 3.4f, 0.45f),
+                flicker(a("lamp"), 0xFFFFD98A, 3.2f, 0.55f, 0.5f),
+                fall(Piece.MAPLE, 50, 105f, 70f, 26f..50f, LEAVES, 30),
             )
             "winter" -> listOf(
                 smoke(a("smoke")),
-                flicker(a("window"), 0xFFFFD27A, 2.2f, 0.45f, 0.5f),
-                fall(Piece.SNOW, 80, 55f, 26f, 4f..10f, longArrayOf(0xFFFFFFFF), 31, 0.9f),
-                fall(Piece.FLAKE, 12, 40f, 40f, 16f..28f, longArrayOf(0xFFFFFFFF), 32, 0.9f, 40f),
+                flicker(a("window"), 0xFFFFD27A, 3f, 0.65f, 0.6f),
+                fall(Piece.SNOW, 170, 80f, 40f, 6f..15f, longArrayOf(0xFFFFFFFF), 31, 0.95f),
+                fall(Piece.FLAKE, 30, 55f, 60f, 26f..46f, longArrayOf(0xFFFFFFFF), 32, 0.95f, 60f),
             )
             "aurora" -> listOf(
-                twinkle(34, SKY_TOP, BAND + 420f, 0xFFFFFFFF, 8f, 33),
+                twinkle(50, SKY_TOP, BAND + 420f, 0xFFFFFFFF, 13f, 33),
                 auroraWave(a("aurora")),
-                shootingStars(34, 300f, 900f),
-                shimmer(water(), BAND + 640f, 14, 0xFF7FE9D1, 35),
-                flicker(a("fire"), 0xFFFF9A3A, 2.6f, 0.55f, 1.3f),
+                shootingStars(34, 300f, 900f, 3.2f),
+                shootingStars(57, BAND + 40f, BAND + 300f, 4.1f),
+                shimmer(water(), BAND + 640f, 24, 0xFF7FE9D1, 35),
+                flicker(a("fire"), 0xFFFF9A3A, 3.4f, 0.8f, 1.4f),
                 sparks(a("fire"), 36),
             )
             "ocean" -> listOf(
-                pulse(a("sun"), 0xFFFFFFFF, 3f, 0.3f),
+                pulse(a("sun"), 0xFFFFFFFF, 3.4f, 0.45f),
+                clouds(3, 300f, 560f, 24f, 0xFFFFFFFF, 58),
                 beam(a("beam")),
-                shimmer(water(), ART_H, 26, 0xFFFFFFFF, 37),
-                flyers(Flyer.BIRD, 3, BAND + 100f, BAND + 340f, 70f, 34f, 0xFFFFFFFF, 38, leftward = true),
+                waves(floatArrayOf(BAND + 440f, BAND + 510f, BAND + 590f, BAND + 680f, BAND + 760f), 46f, 0xFFFFFFFF, 0.65f),
+                shimmer(water(), ART_H, 40, 0xFFFFFFFF, 37),
+                flyers(Flyer.BIRD, 6, BAND + 80f, BAND + 340f, 90f, 50f, 0xFFFFFFFF, 38, leftward = true),
             )
             "desert" -> listOf(
-                pulse(a("sun"), 0xFFFFD9A0, 3f, 0.3f),
-                flyers(Flyer.BIRD, 2, BAND + 120f, BAND + 300f, 50f, 30f, 0xFF7A4A2A, 39),
+                sunRays(a("sun"), 0xFFFFE2A0),
+                pulse(a("sun"), 0xFFFFD9A0, 3.4f, 0.45f),
+                balloons(3, BAND + 60f, BAND + 330f, 59),
+                flyers(Flyer.BIRD, 4, BAND + 80f, BAND + 320f, 70f, 46f, 0xFF7A4A2A, 39),
                 tumbleweed(BAND + 840f),
             )
             "city" -> listOf(
-                twinkle(30, SKY_TOP, BAND + 300f, 0xFFFFFFFF, 8f, 40),
+                twinkle(40, SKY_TOP, BAND + 300f, 0xFFFFFFFF, 13f, 40),
                 windowsOff(a("citywin")),
                 blink(a("antenna")),
                 chase(a("ferris"), longArrayOf(0xFFFF7AC0, 0xFFFFD27A, 0xFF63D6FF, 0xFF7EF0A0)),
-                shimmer(water(), BAND + 780f, 20, 0xFFFFCF73, 41),
-                flicker(a("lamp"), 0xFFFFD98A, 2.4f, 0.35f, 0.4f),
+                traffic(-20f, 640f, BAND + 625f, 60),
+                shimmer(water(), BAND + 780f, 30, 0xFFFFCF73, 41),
+                flicker(a("lamp"), 0xFFFFD98A, 3f, 0.5f, 0.5f),
             )
             "farm" -> listOf(
-                pulse(a("sun"), 0xFFFFE6B0, 3f, 0.3f),
-                flyers(Flyer.BIRD, 3, BAND + 80f, BAND + 300f, 60f, 30f, 0xFF5A3A22, 42),
-                butterflies(2, 200f, 840f, BAND + 600f, BAND + 820f, longArrayOf(0xFFFFFFFF, 0xFFFFE9A8, 0xFFFFB0CC, 0xFFFFD6E6), 43, 26f),
+                sunRays(a("sun"), 0xFFFFEBB8),
+                pulse(a("sun"), 0xFFFFE6B0, 3.4f, 0.45f),
+                clouds(3, 300f, 560f, 22f, 0xFFFFFFFF, 61),
+                flyers(Flyer.BIRD, 6, BAND + 60f, BAND + 320f, 80f, 44f, 0xFF5A3A22, 42),
+                butterflies(5, 60f, 970f, BAND + 400f, BAND + 820f, longArrayOf(0xFFFFFFFF, 0xFFFFE9A8, 0xFFFFB0CC, 0xFFFFD6E6), 43, 40f),
             )
             "mountains" -> listOf(
+                clouds(4, 300f, 560f, 22f, 0xFFFFFFFF, 62),
+                clouds(2, BAND + 80f, BAND + 220f, 30f, 0xFFFFFFFF, 63, 70f..110f),
                 soaring(560f, BAND + 150f, 0xFF2B2B3A),
-                shimmer(water(), BAND + 680f, 18, 0xFFFFFFFF, 44),
-                flyers(Flyer.BIRD, 2, BAND + 60f, BAND + 260f, 50f, 28f, 0xFF2B3A4A, 45, leftward = true),
+                waterfall(905f, BAND + 400f, BAND + 560f, 30f),
+                shimmer(water(), BAND + 680f, 30, 0xFFFFFFFF, 44),
+                flyers(Flyer.BIRD, 5, BAND + 40f, BAND + 280f, 70f, 42f, 0xFF2B3A4A, 45, leftward = true),
             )
             "warehouse" -> listOf(
-                flicker(a("lamp"), 0xFFFFF3D6, 3f, 0.4f, 0.25f),
-                motes(36, 0xFFFFF3D6, 46),
+                flicker(a("lamp"), 0xFFFFF3D6, 4f, 0.6f, 0.35f),
+                motes(80, 0xFFFFF3D6, 46),
             )
-            "shopping" -> listOf(twinkle(24, SKY_TOP, ART_H - 60f, 0xFFFFFFFF, 11f, 47))
+            "shopping" -> listOf(
+                twinkle(44, SKY_TOP, ART_H - 60f, 0xFFFFFFFF, 17f, 47),
+                rise(Piece.HEART, 10, 60f, 40f, 24f..40f, longArrayOf(0xFFFFFFFF, 0xFFFFD166, 0xFFFF8FAB), 64),
+            )
             "horizon" -> listOf(
-                twinkle(14, SKY_TOP, BAND + 300f, 0xFFD6F5DF, 8f, 48),
-                flyers(Flyer.BIRD, 3, BAND + 100f, BAND + 300f, 50f, 28f, 0xFFD6F5DF, 49),
+                twinkle(30, SKY_TOP, BAND + 300f, 0xFFD6F5DF, 13f, 48),
+                pulse(floatArrayOf(640f, BAND + 360f, 90f), 0xFFF4FFE0, 3f, 0.45f, 1f),
+                clouds(3, 300f, 560f, 20f, 0xFFE8F8EC, 65, 70f..120f),
+                flyers(Flyer.BIRD, 6, BAND + 80f, BAND + 320f, 70f, 42f, 0xFFD6F5DF, 49),
             )
             else -> emptyList()
         }
