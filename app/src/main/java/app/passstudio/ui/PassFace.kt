@@ -167,9 +167,21 @@ fun PassFace(pass: Pass, theme: PassTheme, modifier: Modifier = Modifier) {
         Column(Modifier.fillMaxWidth().padding(top = 22.dp, start = 24.dp, end = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             val logoScale = pass.logoSize.coerceIn(0.5f, 1.5f)
             PassLogo(pass, 58.dp * logoScale, DpSize(minOf(200.dp * logoScale, 280.dp), 64.dp * logoScale), ink, 26.sp * logoScale)
-            Spacer(Modifier.height(if (pass.logoStyle == LogoStyle.BIG && pass.logo.isNotBlank()) 3.dp else 8.dp))
-            CardName(pass.title.ifBlank { "Card name" }, pass.titleColor, pass.executiveName(), ink,
-                TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Medium, shadow = shadow), moving = false, maxLines = 1)
+            val bigLogo = pass.logoStyle == LogoStyle.BIG && pass.logo.isNotBlank()
+            val nameStyle = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Medium, shadow = shadow)
+            if (pass.titleBand) {
+                Spacer(Modifier.height(if (bigLogo) 5.dp else 8.dp))
+                NameBand(pass.titleColor) {
+                    CardName(pass.title.ifBlank { "Card name" }, pass.titleColor, pass.executiveName(), Color.White,
+                        nameStyle.copy(shadow = null), moving = false, maxLines = 1,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
+                }
+                Spacer(Modifier.height(4.dp))
+            } else {
+                Spacer(Modifier.height(if (bigLogo) 3.dp else 8.dp))
+                CardName(pass.title.ifBlank { "Card name" }, pass.titleColor, pass.executiveName(), ink, nameStyle,
+                    moving = false, maxLines = 1)
+            }
             Text(pass.header.ifBlank { "Your name" }, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 style = TextStyle(fontSize = 26.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, shadow = shadow))
             if (pass.subheader.isNotBlank()) {

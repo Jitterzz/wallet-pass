@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
@@ -41,17 +42,20 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeJoin
@@ -388,6 +392,37 @@ fun cardNameSwatch(choice: String): Brush = metalOf(choice)?.let { Brush.vertica
     ?: parseHex(choice)?.let { SolidColor(it) }
     ?: Brush.horizontalGradient(0f to Color.White, 0.5f to Color.White, 0.5f to Color(0xFF1A1A1A), 1f to Color(0xFF1A1A1A))
 
+/** Whether a card name color is a shiny one (gold or silver). */
+fun isShiny(choice: String) = metalOf(choice) != null
+
+/** The metal lines along a card name band: gold, or silver for silver lettering. */
+private val GOLD_RULE = listOf(Color(0xFF9C7428), Color(0xFFF4DE96), Color(0xFFFFF7D6), Color(0xFFF4DE96), Color(0xFF9C7428))
+private val SILVER_RULE = listOf(Color(0xFF6F7883), Color(0xFFDCE2E8), Color(0xFFFFFFFF), Color(0xFFDCE2E8), Color(0xFF6F7883))
+
+/**
+ * A black band across the pass with a thin metal line along each edge, like the Executive card, for the card name to sit
+ * on so it stands out on any theme.
+ */
+@Composable
+fun NameBand(color: String, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    val rule = Brush.horizontalGradient(if (color == "silver") SILVER_RULE else GOLD_RULE)
+    Column(
+        modifier.fillMaxWidth().shadow(6.dp, RectangleShape).background(Color(0xFF0B0B0D)),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(Modifier.fillMaxWidth().height(1.5.dp).background(rule))
+        content()
+        Box(Modifier.fillMaxWidth().height(1.5.dp).background(rule))
+    }
+}
+
+/** How long the shine takes to glide across, and how long until the next one starts, at each speed (milliseconds). */
+private fun shineTiming(speed: String): Pair<Int, Int> = when (speed) {
+    "slow" -> 2600 to 3200
+    "fast" -> 1300 to 1600
+    else -> 1900 to 2300
+}
+
 /** The light of a glint [at] (0 to 1) of the way across a line of text [size] big. */
 private fun glint(at: Float, size: Size, alpha: Float): Brush {
     val band = size.height * 2.2f
@@ -407,8 +442,9 @@ private class NameLayout {
 
 /**
  * The card name line, in its color. In a membership card's lettering ([executive]) it's in small capitals on one line,
- * made smaller if it doesn't fit. Gold and silver shine like polished metal, with a glint running across the letters and
- * along their outlines every few seconds while [moving].
+ * stretched to fill the width so it stands out (or made smaller if it doesn't fit). Gold and silver shine like polished
+ * metal: while [moving], a shine glides steadily across the letters and their outlines, one after another, at
+ * [shineSpeed] ("slow", "medium" or "fast").
  */
 @Composable
 fun CardName(
@@ -420,6 +456,7 @@ fun CardName(
     moving: Boolean,
     modifier: Modifier = Modifier,
     maxLines: Int = Int.MAX_VALUE,
+    shineSpeed: String = "medium",
 ) {
     val metal = metalOf(color)
     if (!executive && metal == null) {
@@ -436,11 +473,14 @@ fun CardName(
         style.copy(fontWeight = FontWeight.SemiBold, fontSize = size, letterSpacing = 0.03.em, shadow = null)
     }
     val label = remember(text, executive) { if (executive) smallCaps(text) else AnnotatedString(text) }
-    // Where the glint is, from 0 to 1 across the line; below 0 while it rests between sweeps.
+    // Where the shine is, from 0 to 1 across the line, gliding at a steady pace; below 0 in the moment before the next.
     val shine = if (metal != null && moving) {
-        val sweep = rememberInfiniteTransition(label = "shine")
-            .animateFloat(0f, 1f, infiniteRepeatable(tween(3600, easing = LinearEasing)), label = "shine")
-        remember(sweep) { derivedStateOf { if (sweep.value < 0.4f) sweep.value / 0.4f else -1f } }
+        key(shineSpeed) {
+            val (across, round) = shineTiming(shineSpeed)
+            val clock = rememberInfiniteTransition(label = "shine")
+                .animateFloat(0f, round.toFloat(), infiniteRepeatable(tween(round, easing = LinearEasing)), label = "shine")
+            remember(clock) { derivedStateOf { if (clock.value < across) clock.value / across else -1f } }
+        }
     } else {
         null
     }
@@ -453,9 +493,19 @@ fun CardName(
             .layout { measurable, constraints ->
                 var fontSize = look.fontSize
                 var result = measurer.measure(label, look, softWrap = false, maxLines = 1)
-                if (constraints.hasBoundedWidth && result.size.width > constraints.maxWidth) {
-                    fontSize = look.fontSize * (constraints.maxWidth / result.size.width.toFloat() * 0.98f)
-                    result = measurer.measure(label, look.copy(fontSize = fontSize), softWrap = false, maxLines = 1)
+                if (constraints.hasBoundedWidth) {
+                    // Too wide: smaller, to fit. A membership card's lettering also grows to stretch across, so it stands out.
+                    val room = constraints.maxWidth.toFloat()
+                    val width = result.size.width.toFloat()
+                    val scale = when {
+                        width > room -> room / width * 0.98f
+                        executive && width > 0f -> (room * 0.95f / width).coerceIn(1f, 1.6f)
+                        else -> 1f
+                    }
+                    if (scale != 1f) {
+                        fontSize = look.fontSize * scale
+                        result = measurer.measure(label, look.copy(fontSize = fontSize), softWrap = false, maxLines = 1)
+                    }
                 }
                 laid.text = result
                 laid.fontPx = fontSize.toPx()
@@ -478,7 +528,7 @@ fun CardName(
                 val at = shine?.value ?: -1f
                 drawText(result, brush = Brush.verticalGradient(metal.face, top, bottom),
                     shadow = Shadow(Color.Black.copy(alpha = 0.55f), Offset(0f, 1.5.dp.toPx()), 5.dp.toPx()))
-                if (at >= 0f) drawText(result, brush = glint(at, this.size, 0.5f))
+                if (at >= 0f) drawText(result, brush = glint(at, this.size, 0.8f))
                 drawText(result, brush = Brush.verticalGradient(metal.edge, top, bottom), drawStyle = outline)
                 if (at >= 0f) drawText(result, brush = glint(at, this.size, 1f), drawStyle = outline)
             },

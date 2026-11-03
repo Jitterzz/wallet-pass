@@ -409,22 +409,31 @@ private fun LogoPreview(pass: Pass, theme: PassTheme, moving: Boolean) {
         )
         val scale = maxWidth / 411.dp
         val (circle, big) = passLogoSize(pass, maxWidth, scale)
-        Column(Modifier.padding(vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(Modifier.fillMaxWidth().padding(vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             PassLogo(pass, circle, big, ink, 46.sp * pass.logoSize.coerceIn(0.5f, 1.5f) * scale)
-            Spacer(Modifier.height((if (pass.logoStyle == LogoStyle.BIG) 4.dp else 16.dp) * scale))
-            CardName(
-                pass.title.ifBlank { "My pass" },
-                pass.titleColor,
-                pass.executiveName(),
-                ink,
-                TextStyle(
-                    fontSize = 19.sp * scale, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center,
-                    shadow = Shadow(if (ink == Color.White) Color.Black.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.7f),
-                        Offset(0f, 2f), 12f),
-                ),
-                moving = moving,
-                modifier = Modifier.padding(horizontal = 24.dp * scale),
-            )
+            val bigLogo = pass.logoStyle == LogoStyle.BIG
+            val nameStyle = TextStyle(fontSize = 19.sp * scale, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center)
+            if (pass.titleBand) {
+                Spacer(Modifier.height((if (bigLogo) 6.dp else 16.dp) * scale))
+                NameBand(pass.titleColor) {
+                    CardName(
+                        pass.title.ifBlank { "My pass" }, pass.titleColor, pass.executiveName(), Color.White,
+                        nameStyle.copy(shadow = Shadow(Color.Black.copy(alpha = 0.5f), Offset(0f, 2f), 12f)),
+                        moving = moving, shineSpeed = pass.shineSpeed,
+                        modifier = Modifier.padding(start = 16.dp * scale, end = 16.dp * scale, top = 6.dp * scale, bottom = 5.dp * scale),
+                    )
+                }
+            } else {
+                Spacer(Modifier.height((if (bigLogo) 4.dp else 16.dp) * scale))
+                CardName(
+                    pass.title.ifBlank { "My pass" }, pass.titleColor, pass.executiveName(), ink,
+                    nameStyle.copy(
+                        shadow = Shadow(if (ink == Color.White) Color.Black.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.7f),
+                            Offset(0f, 2f), 12f),
+                    ),
+                    moving = moving, shineSpeed = pass.shineSpeed, modifier = Modifier.padding(horizontal = 24.dp * scale),
+                )
+            }
         }
     }
 }
@@ -472,6 +481,23 @@ private fun CardNameLook(draft: Pass, onChange: (Pass) -> Unit) {
                 "the card's. Gold and silver use it unless you pick Plain.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        SwitchRow(
+            "Black band",
+            "The card name on a black stripe with gold lines, like the Executive card, so it stands out on any theme.",
+            draft.titleBand,
+        ) { onChange(draft.copy(titleBand = it)) }
+        if (isShiny(draft.titleColor)) {
+            Text("Shine speed", style = MaterialTheme.typography.bodyLarge)
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                listOf("slow" to "Slow", "medium" to "Medium", "fast" to "Fast").forEachIndexed { i, (speed, label) ->
+                    SegmentedButton(
+                        selected = draft.shineSpeed == speed,
+                        onClick = { onChange(draft.copy(shineSpeed = speed)) },
+                        shape = SegmentedButtonDefaults.itemShape(i, 3),
+                    ) { Text(label) }
+                }
+            }
+        }
     }
 }
 

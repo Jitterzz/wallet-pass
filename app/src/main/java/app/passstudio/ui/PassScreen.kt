@@ -183,17 +183,28 @@ fun PassScreen(passId: String, onBack: () -> Unit, onEdit: () -> Unit, onSchedul
                     Spacer(Modifier.height(8.dp))
                     val (circle, big) = passLogoSize(pass, screenWidth)
                     PassLogo(pass, circle, big, ink, 46.sp * pass.logoSize.coerceIn(0.5f, 1.5f))
-                    // Close under a big logo, the way a membership card puts its "EXECUTIVE MEMBER" line.
-                    Spacer(Modifier.height(if (pass.logoStyle == LogoStyle.BIG) 4.dp else 16.dp))
-                    CardName(
-                        pass.title.ifBlank { "My pass" },
-                        pass.titleColor,
-                        pass.executiveName(),
-                        ink,
-                        TextStyle(fontSize = 19.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, shadow = shadow),
-                        moving = d.settings.motion && animatorsOn && !scanning,
-                        modifier = Modifier.padding(horizontal = 24.dp),
-                    )
+                    // Close under a big logo, the way a membership card puts its "EXECUTIVE MEMBER" line, and on a black
+                    // band like the card's if it has one.
+                    val nameStyle = TextStyle(fontSize = 19.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, shadow = shadow)
+                    val nameMoving = d.settings.motion && animatorsOn && !scanning
+                    val bigLogo = pass.logoStyle == LogoStyle.BIG
+                    if (pass.titleBand) {
+                        Spacer(Modifier.height(if (bigLogo) 6.dp else 16.dp))
+                        NameBand(pass.titleColor) {
+                            CardName(
+                                pass.title.ifBlank { "My pass" }, pass.titleColor, pass.executiveName(), Color.White,
+                                nameStyle.copy(shadow = Shadow(Color.Black.copy(alpha = 0.5f), Offset(0f, 2f), 12f)),
+                                moving = nameMoving, shineSpeed = pass.shineSpeed,
+                                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 5.dp),
+                            )
+                        }
+                    } else {
+                        Spacer(Modifier.height(if (bigLogo) 4.dp else 16.dp))
+                        CardName(
+                            pass.title.ifBlank { "My pass" }, pass.titleColor, pass.executiveName(), ink, nameStyle,
+                            moving = nameMoving, shineSpeed = pass.shineSpeed, modifier = Modifier.padding(horizontal = 24.dp),
+                        )
+                    }
                     Spacer(Modifier.height(10.dp))
                     Text(
                         pass.header.ifBlank { pass.title.ifBlank { "My pass" } },

@@ -19,7 +19,9 @@ page and changes on its own for the seasons and holidays. No accounts or setup: 
   like) so it stands out on the art. Make it bigger or smaller with the size slider. It's kept on the phone.
 - **The card name:** the line under the logo, in any words (like "Executive Member"). Make it shiny gold or silver,
   with a glint that runs across the letters and along their outlines every few seconds, or one of a few plain colors.
-  It can be in a membership card's lettering: engraved-looking small capitals, the way Costco's Executive card has it.
+  It can be in a membership card's lettering: engraved-looking small capitals, the way Costco's Executive card has it,
+  stretched big across the pass so it's the first thing anyone sees. Put it on a **black band** with gold lines, like
+  the Executive card, to make it stand out on any theme, and pick how fast the shine goes (slow, medium or fast).
 - **Quick access:** star a pass, then open it from the **quick settings tile**, a **home-screen shortcut**, the
   phone's **side button** (Settings > Advanced features > Side button > Double press > Open app > Pass Studio), or
   just by opening the app.

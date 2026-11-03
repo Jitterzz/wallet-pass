@@ -42,6 +42,10 @@ data class Pass(
     val titleColor: String = "",
     /** The card name's font: "executive" (a membership card's lettering), "plain", or "" for the first with gold or silver. */
     val titleFont: String = "",
+    /** Whether the card name sits on a black band with gold lines, like the Executive card, so it stands out. */
+    val titleBand: Boolean = false,
+    /** How fast the shine goes across gold or silver lettering: "slow", "medium" or "fast". */
+    val shineSpeed: String = "medium",
     // Look.
     val mode: LookMode = LookMode.AUTO,
     val fixedThemeId: String = "aurora",
@@ -121,6 +125,7 @@ object DataJson {
         .put("links", JSONArray().apply { p.links.forEach { put(JSONObject().put("label", it.label).put("url", it.url)) } })
         .put("logo", p.logo).put("logoStyle", p.logoStyle.name).put("logoOutline", p.logoOutline)
         .put("logoSize", p.logoSize.toDouble()).put("titleColor", p.titleColor).put("titleFont", p.titleFont)
+        .put("titleBand", p.titleBand).put("shineSpeed", p.shineSpeed)
         .put("mode", p.mode.name).put("fixedThemeId", p.fixedThemeId)
 
     private fun pass(o: JSONObject): Pass {
@@ -150,6 +155,8 @@ object DataJson {
             logoSize = o.optDouble("logoSize", 1.0).toFloat().coerceIn(0.5f, 1.5f),
             titleColor = o.optString("titleColor", ""),
             titleFont = o.optString("titleFont", ""),
+            titleBand = o.optBoolean("titleBand", false),
+            shineSpeed = o.optString("shineSpeed", "medium"),
             mode = runCatching { LookMode.valueOf(o.optString("mode", "AUTO")) }.getOrDefault(LookMode.AUTO),
             fixedThemeId = o.optString("fixedThemeId", "aurora"),
         )
