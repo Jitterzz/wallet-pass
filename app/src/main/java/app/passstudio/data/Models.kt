@@ -46,6 +46,14 @@ data class Pass(
     val titleBand: Boolean = false,
     /** How fast the shine goes across gold or silver lettering: "slow", "medium" or "fast". */
     val shineSpeed: String = "medium",
+    /**
+     * How far your name and the barcode are moved on the pass page from where they'd sit, as shares of the screen's
+     * width and height (0 for where they'd sit).
+     */
+    val nameX: Float = 0f,
+    val nameY: Float = 0f,
+    val codeX: Float = 0f,
+    val codeY: Float = 0f,
     // Look.
     val mode: LookMode = LookMode.AUTO,
     val fixedThemeId: String = "aurora",
@@ -126,6 +134,8 @@ object DataJson {
         .put("logo", p.logo).put("logoStyle", p.logoStyle.name).put("logoOutline", p.logoOutline)
         .put("logoSize", p.logoSize.toDouble()).put("titleColor", p.titleColor).put("titleFont", p.titleFont)
         .put("titleBand", p.titleBand).put("shineSpeed", p.shineSpeed)
+        .put("nameX", p.nameX.toDouble()).put("nameY", p.nameY.toDouble())
+        .put("codeX", p.codeX.toDouble()).put("codeY", p.codeY.toDouble())
         .put("mode", p.mode.name).put("fixedThemeId", p.fixedThemeId)
 
     private fun pass(o: JSONObject): Pass {
@@ -157,6 +167,10 @@ object DataJson {
             titleFont = o.optString("titleFont", ""),
             titleBand = o.optBoolean("titleBand", false),
             shineSpeed = o.optString("shineSpeed", "medium"),
+            nameX = o.optDouble("nameX", 0.0).toFloat(),
+            nameY = o.optDouble("nameY", 0.0).toFloat(),
+            codeX = o.optDouble("codeX", 0.0).toFloat(),
+            codeY = o.optDouble("codeY", 0.0).toFloat(),
             mode = runCatching { LookMode.valueOf(o.optString("mode", "AUTO")) }.getOrDefault(LookMode.AUTO),
             fixedThemeId = o.optString("fixedThemeId", "aurora"),
         )

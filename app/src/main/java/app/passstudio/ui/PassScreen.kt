@@ -18,6 +18,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,6 +34,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -47,39 +49,57 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.round
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.toSize
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -133,6 +153,24 @@ fun PassScreen(passId: String, onBack: () -> Unit, onEdit: () -> Unit, onSchedul
     var scanning by remember { mutableStateOf(false) }
     val animatorsOn = remember { ValueAnimator.areAnimatorsEnabled() }
     val code = pass.barcodeValue.trim()
+    // Moving your name and the barcode: drag them while arranging, then Done keeps them there.
+    var arranging by remember { mutableStateOf(false) }
+    var nameDraft by remember { mutableStateOf(Offset.Zero) }
+    var codeDraft by remember { mutableStateOf(Offset.Zero) }
+    val nameAt = if (arranging) nameDraft else Offset(pass.nameX, pass.nameY)
+    val codeAt = if (arranging) codeDraft else Offset(pass.codeX, pass.codeY)
+    var area by remember { mutableStateOf(Size.Zero) }
+    var topBarBottom by remember { mutableFloatStateOf(0f) }
+    fun startArranging() {
+        nameDraft = Offset(pass.nameX, pass.nameY)
+        codeDraft = Offset(pass.codeX, pass.codeY)
+        arranging = true
+    }
+    fun finishArranging() {
+        Store.updatePass(pass.id) { it.copy(nameX = nameDraft.x, nameY = nameDraft.y, codeX = codeDraft.x, codeY = codeDraft.y) }
+        arranging = false
+    }
+    BackHandler(enabled = arranging) { arranging = false }
 
     fun open(url: String) {
         runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
@@ -153,11 +191,37 @@ fun PassScreen(passId: String, onBack: () -> Unit, onEdit: () -> Unit, onSchedul
             val firstScreen = (maxHeight - WindowInsets.statusBars.asPaddingValues().calculateTopPadding()).coerceAtLeast(0.dp)
             val screenWidth = maxWidth
             Column(
-                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding().navigationBarsPadding(),
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState(), enabled = !arranging).statusBarsPadding()
+                    .navigationBarsPadding(),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Column(Modifier.fillMaxWidth().heightIn(min = firstScreen), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(
+                    Modifier.fillMaxWidth().heightIn(min = firstScreen).onGloballyPositioned { area = it.size.toSize() },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth()
+                            .onGloballyPositioned { topBarBottom = it.positionInParent().y + it.size.height }
+                            .padding(horizontal = 4.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                      if (arranging) {
+                        Text(
+                            "Drag your name and barcode",
+                            color = ink,
+                            style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Medium, shadow = shadow),
+                            modifier = Modifier.weight(1f).padding(start = 12.dp),
+                        )
+                        TextButton(
+                            onClick = { nameDraft = Offset.Zero; codeDraft = Offset.Zero },
+                            colors = ButtonDefaults.textButtonColors(contentColor = ink),
+                        ) { Text("Reset") }
+                        Button(
+                            onClick = { finishArranging() },
+                            colors = ButtonDefaults.buttonColors(containerColor = ink, contentColor = if (darkArt) Color.Black else Color.White),
+                            modifier = Modifier.padding(end = 8.dp),
+                        ) { Text("Done") }
+                      } else {
                         IconButton(onClick = onBack) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = ink)
                         }
@@ -173,10 +237,14 @@ fun PassScreen(passId: String, onBack: () -> Unit, onEdit: () -> Unit, onSchedul
                                 tint = ink,
                             )
                         }
+                        IconButton(onClick = { startArranging() }) {
+                            Icon(painterResource(R.drawable.ic_move), contentDescription = "Move your name and the barcode", tint = ink)
+                        }
                         IconButton(onClick = { pickingTheme = true }) {
                             Icon(painterResource(R.drawable.ic_palette), contentDescription = "Change theme", tint = ink)
                         }
                         IconButton(onClick = onEdit) { Icon(Icons.Filled.Edit, contentDescription = "Edit pass", tint = ink) }
+                      }
                     }
 
                     // Sized so everything fits above the scene at the bottom of the page.
@@ -206,31 +274,42 @@ fun PassScreen(passId: String, onBack: () -> Unit, onEdit: () -> Unit, onSchedul
                         )
                     }
                     Spacer(Modifier.height(10.dp))
-                    Text(
-                        pass.header.ifBlank { pass.title.ifBlank { "My pass" } },
-                        color = ink,
-                        style = TextStyle(fontSize = 42.sp, lineHeight = 48.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
-                            shadow = shadow),
-                        modifier = Modifier.padding(horizontal = 20.dp),
-                    )
-                    if (pass.subheader.isNotBlank()) {
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            pass.subheader,
-                            color = ink,
-                            style = TextStyle(fontSize = 20.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, shadow = shadow),
-                        )
+                    Movable(nameAt, area, topBarBottom, arranging, ink, "Your name", { nameDraft = it },
+                        Modifier.padding(horizontal = 20.dp)) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                pass.header.ifBlank { pass.title.ifBlank { "My pass" } },
+                                color = ink,
+                                style = TextStyle(fontSize = 42.sp, lineHeight = 48.sp, fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center, shadow = shadow),
+                            )
+                            if (pass.subheader.isNotBlank()) {
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    pass.subheader,
+                                    color = ink,
+                                    style = TextStyle(fontSize = 20.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center,
+                                        shadow = shadow),
+                                )
+                            }
+                        }
                     }
                     if (code.isNotEmpty()) {
                         Spacer(Modifier.height(22.dp))
-                        PageBarcode(pass) { scanning = true }
-                        if (pass.showNumber) {
-                            Spacer(Modifier.height(12.dp))
-                            Text(
-                                code,
-                                color = ink,
-                                style = TextStyle(fontSize = 19.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.5.sp, shadow = shadow),
-                            )
+                        Movable(codeAt, area, topBarBottom, arranging, ink, "The barcode", { codeDraft = it },
+                            Modifier.padding(horizontal = 28.dp)) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                PageBarcode(pass, enabled = !arranging) { scanning = true }
+                                if (pass.showNumber) {
+                                    Spacer(Modifier.height(12.dp))
+                                    Text(
+                                        code,
+                                        color = ink,
+                                        style = TextStyle(fontSize = 19.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.5.sp,
+                                            shadow = shadow),
+                                    )
+                                }
+                            }
                         }
                     }
 
@@ -304,13 +383,70 @@ fun PassScreen(passId: String, onBack: () -> Unit, onEdit: () -> Unit, onSchedul
     }
 }
 
+/**
+ * A part of the pass page that can be moved: drawn [at] (shares of the [area]'s width and height) away from where it
+ * would sit, and kept on the screen below the top bar ([top]). While [arranging] it has a dashed outline and follows
+ * your finger.
+ */
+@Composable
+private fun Movable(
+    at: Offset,
+    area: Size,
+    top: Float,
+    arranging: Boolean,
+    ink: Color,
+    label: String,
+    onMove: (Offset) -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    // Where it would sit in the page, before it's moved.
+    var home by remember { mutableStateOf(Rect.Zero) }
+    fun shift(f: Offset): Offset {
+        if (area.width <= 0f || area.height <= 0f) return Offset.Zero
+        fun keep(v: Float, low: Float, high: Float) = if (low <= high) v.coerceIn(low, high) else 0f
+        return Offset(
+            keep(f.x * area.width, -home.left, area.width - home.right),
+            keep(f.y * area.height, top - home.top, area.height - home.bottom),
+        )
+    }
+    val latestAt by rememberUpdatedState(at)
+    val latestMove by rememberUpdatedState(onMove)
+    Box(
+        modifier
+            .onGloballyPositioned { home = Rect(it.positionInParent(), it.size.toSize()) }
+            .offset { shift(at).round() }
+            .then(
+                if (!arranging) Modifier
+                else Modifier
+                    .drawWithContent {
+                        drawContent()
+                        val pad = 6.dp.toPx()
+                        drawRoundRect(
+                            ink.copy(alpha = 0.9f), Offset(-pad, -pad), Size(size.width + pad * 2, size.height + pad * 2),
+                            CornerRadius(14.dp.toPx()),
+                            style = Stroke(2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10.dp.toPx(), 6.dp.toPx()))),
+                        )
+                    }
+                    .pointerInput(area, top) {
+                        detectDragGestures { change, amount ->
+                            change.consume()
+                            val moved = shift(latestAt) + amount
+                            latestMove(Offset(moved.x / area.width, moved.y / area.height))
+                        }
+                    }
+                    .semantics { contentDescription = "$label: drag to move it" },
+            ),
+    ) { content() }
+}
+
 /** The barcode on white, drawn at the exact size it shows at so it scans cleanly. Tap it for the scan view. */
 @Composable
-private fun PageBarcode(pass: Pass, onOpen: () -> Unit) {
+private fun PageBarcode(pass: Pass, enabled: Boolean, onOpen: () -> Unit) {
     val square = Barcodes.isSquare(pass.barcodeType)
     Box(
-        Modifier.padding(horizontal = 28.dp).fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(Color.White)
-            .clickable(onClickLabel = "Show the barcode bigger for scanning", onClick = onOpen),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(Color.White)
+            .clickable(enabled = enabled, onClickLabel = "Show the barcode bigger for scanning", onClick = onOpen),
     ) {
         BarcodeImage(pass, Modifier.fillMaxWidth().padding(24.dp)) { maxWidth ->
             val h = if (square) minOf(maxWidth, 210.dp) else 118.dp

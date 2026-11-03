@@ -22,6 +22,8 @@ page and changes on its own for the seasons and holidays. No accounts or setup: 
   It can be in a membership card's lettering: engraved-looking small capitals, the way Costco's Executive card has it,
   stretched big across the pass so it's the first thing anyone sees. Put it on a **black band** with gold lines, like
   the Executive card, to make it stand out on any theme, and pick how fast the shine goes (slow, medium or fast).
+- **Move things:** tap the move button (four arrows) at the top of a pass, then drag your name and the barcode
+  wherever you want them on the screen. Done keeps them there; Reset puts them back.
 - **Quick access:** star a pass, then open it from the **quick settings tile**, a **home-screen shortcut**, the
   phone's **side button** (Settings > Advanced features > Side button > Double press > Open app > Pass Studio), or
   just by opening the app.
