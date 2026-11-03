@@ -1,5 +1,6 @@
 package app.passstudio.ui
 
+import android.animation.ValueAnimator
 import android.app.Activity
 import android.content.ComponentName
 import android.content.Context
@@ -77,7 +78,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
@@ -131,6 +131,7 @@ fun PassScreen(passId: String, onBack: () -> Unit, onEdit: () -> Unit, onSchedul
     var pickingTheme by remember { mutableStateOf(false) }
     // The barcode by itself on white, for the scanner (tap the barcode to open it).
     var scanning by remember { mutableStateOf(false) }
+    val animatorsOn = remember { ValueAnimator.areAnimatorsEnabled() }
     val code = pass.barcodeValue.trim()
 
     fun open(url: String) {
@@ -180,12 +181,17 @@ fun PassScreen(passId: String, onBack: () -> Unit, onEdit: () -> Unit, onSchedul
 
                     // Sized so everything fits above the scene at the bottom of the page.
                     Spacer(Modifier.height(8.dp))
-                    PassLogo(pass, 104.dp, DpSize(screenWidth - 40.dp, 140.dp), ink, 46.sp)
-                    Spacer(Modifier.height(if (pass.logoStyle == LogoStyle.BIG) 10.dp else 16.dp))
-                    Text(
+                    val (circle, big) = passLogoSize(pass, screenWidth)
+                    PassLogo(pass, circle, big, ink, 46.sp * pass.logoSize.coerceIn(0.5f, 1.5f))
+                    // Close under a big logo, the way a membership card puts its "EXECUTIVE MEMBER" line.
+                    Spacer(Modifier.height(if (pass.logoStyle == LogoStyle.BIG) 4.dp else 16.dp))
+                    CardName(
                         pass.title.ifBlank { "My pass" },
-                        color = ink,
-                        style = TextStyle(fontSize = 19.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, shadow = shadow),
+                        pass.titleColor,
+                        pass.executiveName(),
+                        ink,
+                        TextStyle(fontSize = 19.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, shadow = shadow),
+                        moving = d.settings.motion && animatorsOn && !scanning,
                         modifier = Modifier.padding(horizontal = 24.dp),
                     )
                     Spacer(Modifier.height(10.dp))

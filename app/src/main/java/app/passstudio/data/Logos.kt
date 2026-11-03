@@ -58,6 +58,29 @@ object Logos {
         return if (opts.outWidth > 0 && opts.outHeight > 0) opts.outWidth to opts.outHeight else null
     }
 
+    private val bottoms = HashMap<String, Float>()
+
+    /**
+     * How far down the big logo picture called [name] the logo itself goes, from 0 to 1 (below that there's only its
+     * soft shadow), so the text under it can sit close to the logo.
+     */
+    fun bodyBottom(context: Context, name: String): Float = synchronized(bottoms) {
+        bottoms.getOrPut(name) {
+            val bitmap = BitmapFactory.decodeFile(file(context, name).path) ?: return@getOrPut 1f
+            val w = bitmap.width
+            val h = bitmap.height
+            val px = IntArray(w * h).also { bitmap.getPixels(it, 0, w, 0, 0, w, h) }
+            var last = h - 1
+            run {
+                for (y in h - 1 downTo 0) for (x in 0 until w) if (px[y * w + x] ushr 24 >= 200) {
+                    last = y
+                    return@run
+                }
+            }
+            (last + 1f) / h
+        }
+    }
+
     /** Deletes kept logos that no pass uses anymore. */
     fun cleanUp(context: Context, inUse: Collection<String>) {
         val keep = inUse.filter { it.isNotBlank() }.flatMap { listOf(it, bigName(it, true), bigName(it, false)) }.toSet()

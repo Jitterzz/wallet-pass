@@ -1,24 +1,33 @@
 package app.passstudio.ui
 
+import android.animation.ValueAnimator
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -41,6 +50,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -56,30 +66,41 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import app.passstudio.R
 import app.passstudio.data.Catalog
 import app.passstudio.data.DetailRow
+import app.passstudio.data.LogoException
 import app.passstudio.data.LogoStyle
+import app.passstudio.data.Logos
 import app.passstudio.data.LookMode
 import app.passstudio.data.Pass
 import app.passstudio.data.PassLink
+import app.passstudio.data.PassTheme
 import app.passstudio.data.Seasons
 import app.passstudio.data.Store
-import app.passstudio.data.LogoException
-import app.passstudio.data.Logos
+import java.time.LocalDate
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,6 +114,7 @@ fun PassEditor(passId: String, onBack: () -> Unit, onSchedule: () -> Unit) {
     var message by remember { mutableStateOf<String?>(null) }
     var confirmDelete by remember { mutableStateOf(false) }
     var savingLogo by remember { mutableStateOf(false) }
+    val animatorsOn = remember { ValueAnimator.areAnimatorsEnabled() }
 
     // Picking a logo: it's kept on the phone, fitted to the circle and cut out for showing big.
     val logoPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -158,7 +180,8 @@ fun PassEditor(passId: String, onBack: () -> Unit, onSchedule: () -> Unit) {
 
             SectionTitle("Card")
             Panel {
-                Field("Card name", draft.title, "Shows at the top, under the logo") { draft = draft.copy(title = it) }
+                Field("Card name", draft.title, "Shows under the logo, like \"Executive Member\"") { draft = draft.copy(title = it) }
+                CardNameLook(draft) { draft = it }
                 Field("Small line", draft.subheader, "Above your name, like \"Member\"") { draft = draft.copy(subheader = it) }
                 Field("Big line", draft.header, "Usually your name") { draft = draft.copy(header = it) }
             }
@@ -248,14 +271,9 @@ fun PassEditor(passId: String, onBack: () -> Unit, onSchedule: () -> Unit) {
                         "background cut away. A see-through PNG works best. Only use a logo you have the right to use.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                // The top of the pass with the logo the size it shows, so the changes below show as they're made.
+                if (draft.logo.isNotBlank()) LogoPreview(draft, theme, moving = d.settings.motion && animatorsOn)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    if (draft.logo.isNotBlank()) {
-                        // The logo the way the pass shows it, on this pass's theme color.
-                        val sky = parseHex(Catalog.skyColor(theme.art)) ?: Color(0xFF1A1A1A)
-                        Box(Modifier.clip(RoundedCornerShape(14.dp)).background(sky).padding(8.dp), contentAlignment = Alignment.Center) {
-                            PassLogo(draft, 56.dp, DpSize(120.dp, 56.dp), inkOn(sky), 22.sp)
-                        }
-                    }
                     FilledTonalButton(onClick = { logoPicker.launch(arrayOf("image/*")) }, enabled = !savingLogo) {
                         Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
@@ -294,6 +312,27 @@ fun PassEditor(passId: String, onBack: () -> Unit, onSchedule: () -> Unit) {
                             )
                         }
                     }
+                    // As big as it goes: a circle up to one and a half times; a big logo until it's as wide as the screen.
+                    val screenWidth = LocalConfiguration.current.screenWidthDp.toFloat()
+                    val maxSize = remember(draft.logo, draft.logoStyle, draft.logoOutline, screenWidth) {
+                        val ratio = if (draft.logoStyle != LogoStyle.BIG) null
+                        else Logos.size(context, Logos.bigName(draft.logo, draft.logoOutline))?.let { (w, h) -> w.toFloat() / h }
+                        if (ratio == null) 1.5f
+                        else ((screenWidth - 24f) / minOf(screenWidth - 40f, 140f * ratio)).coerceIn(1f, 1.5f)
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Size", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                        Text("${(draft.logoSize.coerceIn(0.5f, maxSize) * 100).roundToInt()}%", style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        if (draft.logoSize != 1f) {
+                            TextButton(onClick = { draft = draft.copy(logoSize = 1f) }) { Text("Reset") }
+                        }
+                    }
+                    Slider(
+                        value = draft.logoSize.coerceIn(0.5f, maxSize),
+                        onValueChange = { draft = draft.copy(logoSize = ((it * 20).roundToInt() / 20f).coerceIn(0.5f, maxSize)) },
+                        valueRange = 0.5f..maxSize,
+                    )
                 }
             }
 
@@ -345,6 +384,93 @@ fun PassEditor(passId: String, onBack: () -> Unit, onSchedule: () -> Unit) {
                 }) { Text("Delete") }
             },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },
+        )
+    }
+}
+
+/**
+ * The top of the pass with its logo and card name, the way the pass page shows them (scaled to fit here), over the
+ * theme's art: for seeing the logo's style and size, and the name's color, as they change.
+ */
+@Composable
+private fun LogoPreview(pass: Pass, theme: PassTheme, moving: Boolean) {
+    val sky = parseHex(Catalog.skyColor(theme.art)) ?: Color(0xFF1A1A1A)
+    val ink = inkOn(sky)
+    BoxWithConstraints(
+        Modifier.fillMaxWidth().heightIn(min = 200.dp).clip(RoundedCornerShape(18.dp)).background(sky),
+        contentAlignment = Alignment.Center,
+    ) {
+        Image(
+            painter = painterResource(Catalog.pageRes(theme.art)),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            alignment = Alignment.TopCenter,
+            modifier = Modifier.matchParentSize(),
+        )
+        val scale = maxWidth / 411.dp
+        val (circle, big) = passLogoSize(pass, maxWidth, scale)
+        Column(Modifier.padding(vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            PassLogo(pass, circle, big, ink, 46.sp * pass.logoSize.coerceIn(0.5f, 1.5f) * scale)
+            Spacer(Modifier.height((if (pass.logoStyle == LogoStyle.BIG) 4.dp else 16.dp) * scale))
+            CardName(
+                pass.title.ifBlank { "My pass" },
+                pass.titleColor,
+                pass.executiveName(),
+                ink,
+                TextStyle(
+                    fontSize = 19.sp * scale, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center,
+                    shadow = Shadow(if (ink == Color.White) Color.Black.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.7f),
+                        Offset(0f, 2f), 12f),
+                ),
+                moving = moving,
+                modifier = Modifier.padding(horizontal = 24.dp * scale),
+            )
+        }
+    }
+}
+
+/** The card name's color (gold and silver shine) and its lettering. */
+@Composable
+private fun CardNameLook(draft: Pass, onChange: (Pass) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Card name color", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+            Text(cardNameColorName(draft.titleColor), style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.SpaceBetween) {
+            for (c in CARD_NAME_COLORS) {
+                val picked = draft.titleColor == c
+                Box(
+                    Modifier.size(40.dp).clip(CircleShape)
+                        .selectable(selected = picked, role = Role.RadioButton) { onChange(draft.copy(titleColor = c)) }
+                        .semantics { contentDescription = cardNameColorName(c) }
+                        .border(2.5.dp, if (picked) MaterialTheme.colorScheme.primary else Color.Transparent, CircleShape)
+                        .padding(5.dp)
+                        .clip(CircleShape)
+                        .background(cardNameSwatch(c))
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
+                )
+            }
+        }
+        Text("Font", style = MaterialTheme.typography.bodyLarge)
+        val executive = draft.executiveName()
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            SegmentedButton(
+                selected = !executive,
+                onClick = { onChange(draft.copy(titleFont = "plain")) },
+                shape = SegmentedButtonDefaults.itemShape(0, 2),
+            ) { Text("Plain") }
+            SegmentedButton(
+                selected = executive,
+                onClick = { onChange(draft.copy(titleFont = "executive")) },
+                shape = SegmentedButtonDefaults.itemShape(1, 2),
+            ) { Text(smallCaps("Executive"), fontFamily = ExecutiveFont, letterSpacing = 0.1.em) }
+        }
+        Text(
+            "Executive is a membership card's lettering, in small capitals: type \"Executive Member\" and it shows like " +
+                "the card's. Gold and silver use it unless you pick Plain.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

@@ -1,8 +1,12 @@
 package app.passstudio.ui
 
 import android.graphics.BitmapFactory
-import androidx.compose.ui.platform.LocalContext
 import android.util.LruCache
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -17,6 +21,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -34,29 +39,58 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextGeometricTransform
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.isSpecified
+import androidx.compose.ui.unit.sp
+import app.passstudio.R
 import app.passstudio.data.Catalog
-import app.passstudio.data.PassTheme
 import app.passstudio.data.LogoStyle
 import app.passstudio.data.Logos
 import app.passstudio.data.Pass
+import app.passstudio.data.PassTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -239,6 +273,17 @@ fun rememberLogo(name: String): ImageBitmap? {
 }
 
 /**
+ * How big a pass's logo shows on a pass page [pageWidth] across: its circle's size, and the box a big logo fits in.
+ * The usual sizes are for a phone 411 wide ([scale] shrinks them for a smaller picture of the page), times the pass's
+ * own logo size; a big logo never goes wider than the page.
+ */
+fun passLogoSize(pass: Pass, pageWidth: Dp, scale: Float = 1f): Pair<Dp, DpSize> {
+    val s = pass.logoSize.coerceIn(0.5f, 1.5f)
+    val width = minOf((pageWidth - 40.dp * scale) * s, pageWidth - 24.dp * scale)
+    return (104.dp * s * scale) to DpSize(width, 140.dp * s * scale)
+}
+
+/**
  * The logo at the top of a pass, the way the pass shows it: in its white circle ([circle] across), or big on its own,
  * as large as fits in [big]. A logo kept before there were big versions shows in its circle.
  */
@@ -249,22 +294,195 @@ fun PassLogo(pass: Pass, circle: Dp, big: DpSize, ink: Color, letterSize: TextUn
     val bigLogo = remember(pass.logo, pass.logoStyle, pass.logoOutline) {
         if (pass.logoStyle != LogoStyle.BIG || !Logos.hasBig(context, pass.logo)) null
         else Logos.bigName(pass.logo, pass.logoOutline).let { name ->
-            Logos.size(context, name)?.let { (w, h) -> name to w.toFloat() / h }
+            Logos.size(context, name)?.let { (w, h) -> Triple(name, w.toFloat() / h, Logos.bodyBottom(context, name)) }
         }
     }
     if (bigLogo == null) {
         RoundLogo(pass, circle, ink, letterSize, modifier)
         return
     }
-    val (name, ratio) = bigLogo
+    val (name, ratio, bottom) = bigLogo
     val width = if (ratio >= big.width / big.height) big.width else big.height * ratio
     val height = width / ratio
     val image = rememberLogo(name)
-    if (image != null) {
-        Image(image, contentDescription = "Logo", contentScale = ContentScale.Fit, modifier = modifier.size(width, height))
-    } else {
-        Spacer(modifier.size(width, height))
+    // It takes up room only down to the logo itself; its shadow hangs below, so the text under it sits close.
+    Box(modifier.size(width, height * bottom)) {
+        if (image != null) {
+            Image(image, contentDescription = "Logo", contentScale = ContentScale.Fit,
+                modifier = Modifier.wrapContentHeight(Alignment.Top, unbounded = true).size(width, height))
+        }
     }
+}
+
+// ---------- The card name ----------
+
+/** Colors to pick from for the card name: the usual (white or dark to suit the theme), shiny gold and silver, and plain ones. */
+val CARD_NAME_COLORS = listOf("", "gold", "silver", "#E31837", "#1F6FD0", "#FFFFFF", "#1A1A1A")
+
+/** What each card name color is called, for the color picker. */
+fun cardNameColorName(choice: String): String = when (choice) {
+    "" -> "Usual"
+    "gold" -> "Gold"
+    "silver" -> "Silver"
+    "#E31837" -> "Red"
+    "#1F6FD0" -> "Blue"
+    "#FFFFFF" -> "White"
+    "#1A1A1A" -> "Black"
+    else -> choice
+}
+
+/**
+ * A membership card's lettering, like the "EXECUTIVE MEMBER" on Costco's card: Copperplate CC, a free revival of
+ * Copperplate Gothic by indestructible type* (SIL Open Font License; the license is in the app's assets).
+ */
+val ExecutiveFont = FontFamily(Font(R.font.copperplate_cc_bold, FontWeight.Bold))
+
+/** Whether the card name shows in a membership card's lettering: as picked, or by itself when it's gold or silver. */
+fun Pass.executiveName(): Boolean = when (titleFont) {
+    "executive" -> true
+    "plain" -> false
+    else -> metalOf(titleColor) != null
+}
+
+/**
+ * [text] in small capitals, the way a membership card letters it: capitals stay full size and the other letters become
+ * smaller capitals, so "Executive Member" shows like the card's "EXECUTIVE MEMBER". Spaces are narrower, like the card's.
+ */
+fun smallCaps(text: String): AnnotatedString = buildAnnotatedString {
+    var i = 0
+    while (i < text.length) {
+        if (text[i] == ' ') {
+            withStyle(SpanStyle(fontSize = 0.6.em)) { append(' ') }
+            i++
+            continue
+        }
+        val lower = text[i].isLowerCase()
+        var j = i + 1
+        while (j < text.length && text[j] != ' ' && text[j].isLowerCase() == lower) j++
+        val run = text.substring(i, j)
+        if (lower) withStyle(SpanStyle(fontSize = 0.83.em)) { append(run.uppercase()) } else append(run)
+        i = j
+    }
+}
+
+/** Polished metal down the letters, and the deeper metal of their outlines. */
+private class Metal(val face: List<Color>, val edge: List<Color>)
+
+private val GOLD = Metal(
+    listOf(Color(0xFFFFF7D6), Color(0xFFFAEA99), Color(0xFFE6C677), Color(0xFFF4DE96), Color(0xFFFFF1C4)),
+    listOf(Color(0xFFC9A04A), Color(0xFF9C7428), Color(0xFFC29A48)),
+)
+private val SILVER = Metal(
+    listOf(Color(0xFFFFFFFF), Color(0xFFEDF0F3), Color(0xFFC3CAD2), Color(0xFFE2E6EA), Color(0xFFF9FAFB)),
+    listOf(Color(0xFFA2ABB5), Color(0xFF6F7883), Color(0xFFA0A9B3)),
+)
+
+private fun metalOf(choice: String): Metal? = when (choice) {
+    "gold" -> GOLD
+    "silver" -> SILVER
+    else -> null
+}
+
+/** A swatch's paint for a card name color. */
+fun cardNameSwatch(choice: String): Brush = metalOf(choice)?.let { Brush.verticalGradient(it.face) }
+    ?: parseHex(choice)?.let { SolidColor(it) }
+    ?: Brush.horizontalGradient(0f to Color.White, 0.5f to Color.White, 0.5f to Color(0xFF1A1A1A), 1f to Color(0xFF1A1A1A))
+
+/** The light of a glint [at] (0 to 1) of the way across a line of text [size] big. */
+private fun glint(at: Float, size: Size, alpha: Float): Brush {
+    val band = size.height * 2.2f
+    val x = -band + at * (size.width + band * 2f)
+    val light = Color(0xFFFFFCEB)
+    return Brush.linearGradient(
+        0.3f to light.copy(alpha = 0f), 0.5f to light.copy(alpha = alpha), 0.7f to light.copy(alpha = 0f),
+        start = Offset(x - band, 0f), end = Offset(x + band, size.height * 0.7f),
+    )
+}
+
+/** How a card name line got laid out: on one line, made smaller if it didn't fit. */
+private class NameLayout {
+    var text: TextLayoutResult? = null
+    var fontPx = 0f
+}
+
+/**
+ * The card name line, in its color. In a membership card's lettering ([executive]) it's in small capitals on one line,
+ * made smaller if it doesn't fit. Gold and silver shine like polished metal, with a glint running across the letters and
+ * along their outlines every few seconds while [moving].
+ */
+@Composable
+fun CardName(
+    text: String,
+    color: String,
+    executive: Boolean,
+    ink: Color,
+    style: TextStyle,
+    moving: Boolean,
+    modifier: Modifier = Modifier,
+    maxLines: Int = Int.MAX_VALUE,
+) {
+    val metal = metalOf(color)
+    if (!executive && metal == null) {
+        Text(text, color = parseHex(color) ?: ink, style = style, maxLines = maxLines, overflow = TextOverflow.Ellipsis,
+            modifier = modifier)
+        return
+    }
+    val size = if (style.fontSize.isSpecified) style.fontSize else 16.sp
+    // Sized, spaced and widened to match the card's lettering.
+    val look = if (executive) {
+        style.copy(fontFamily = ExecutiveFont, fontWeight = FontWeight.Bold, fontSize = size * 1.25f, letterSpacing = 0.18.em,
+            textGeometricTransform = TextGeometricTransform(scaleX = 1.1f), shadow = null)
+    } else {
+        style.copy(fontWeight = FontWeight.SemiBold, fontSize = size, letterSpacing = 0.03.em, shadow = null)
+    }
+    val label = remember(text, executive) { if (executive) smallCaps(text) else AnnotatedString(text) }
+    // Where the glint is, from 0 to 1 across the line; below 0 while it rests between sweeps.
+    val shine = if (metal != null && moving) {
+        val sweep = rememberInfiniteTransition(label = "shine")
+            .animateFloat(0f, 1f, infiniteRepeatable(tween(3600, easing = LinearEasing)), label = "shine")
+        remember(sweep) { derivedStateOf { if (sweep.value < 0.4f) sweep.value / 0.4f else -1f } }
+    } else {
+        null
+    }
+    val measurer = rememberTextMeasurer()
+    val laid = remember { NameLayout() }
+    val shadow = style.shadow
+    Spacer(
+        modifier
+            .semantics { contentDescription = text }
+            .layout { measurable, constraints ->
+                var fontSize = look.fontSize
+                var result = measurer.measure(label, look, softWrap = false, maxLines = 1)
+                if (constraints.hasBoundedWidth && result.size.width > constraints.maxWidth) {
+                    fontSize = look.fontSize * (constraints.maxWidth / result.size.width.toFloat() * 0.98f)
+                    result = measurer.measure(label, look.copy(fontSize = fontSize), softWrap = false, maxLines = 1)
+                }
+                laid.text = result
+                laid.fontPx = fontSize.toPx()
+                val placeable = measurable.measure(Constraints.fixed(result.size.width, result.size.height))
+                layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+            }
+            .drawBehind {
+                val result = laid.text ?: return@drawBehind
+                // A fine outline: it gives the letters the weight of the card's printing, and catches the glint.
+                val outline = Stroke(laid.fontPx * 0.05f, join = StrokeJoin.Round)
+                if (metal == null) {
+                    val c = parseHex(color) ?: ink
+                    drawText(result, color = c, shadow = shadow)
+                    drawText(result, color = c, drawStyle = outline)
+                    return@drawBehind
+                }
+                // The metal's shading runs down the capitals, from their tops to the line they sit on.
+                val bottom = result.firstBaseline
+                val top = bottom - laid.fontPx * 0.7f
+                val at = shine?.value ?: -1f
+                drawText(result, brush = Brush.verticalGradient(metal.face, top, bottom),
+                    shadow = Shadow(Color.Black.copy(alpha = 0.55f), Offset(0f, 1.5.dp.toPx()), 5.dp.toPx()))
+                if (at >= 0f) drawText(result, brush = glint(at, this.size, 0.5f))
+                drawText(result, brush = Brush.verticalGradient(metal.edge, top, bottom), drawStyle = outline)
+                if (at >= 0f) drawText(result, brush = glint(at, this.size, 1f), drawStyle = outline)
+            },
+    )
 }
 
 /** A logo in its white circle, or the card name's first letter when there's no logo. */

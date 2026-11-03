@@ -16,11 +16,20 @@ page and changes on its own for the seasons and holidays. No accounts or setup: 
   holidays. Pick which theme each holiday and season gets, or turn holidays off.
 - **Logos:** pick a picture on the phone (a see-through PNG works best). Show it in the circle at the top of the pass,
   or big on its own: its background is cut away and it gets a soft shadow (and a thin white line around it, if you
-  like) so it stands out on the art. It's kept on the phone.
+  like) so it stands out on the art. Make it bigger or smaller with the size slider. It's kept on the phone.
+- **The card name:** the line under the logo, in any words (like "Executive Member"). Make it shiny gold or silver,
+  with a glint that runs across the letters and along their outlines every few seconds, or one of a few plain colors.
+  It can be in a membership card's lettering: engraved-looking small capitals, the way Costco's Executive card has it.
 - **Quick access:** star a pass, then open it from the **quick settings tile**, a **home-screen shortcut**, the
   phone's **side button** (Settings > Advanced features > Side button > Double press > Open app > Pass Studio), or
   just by opening the app.
 - **Backups:** passes and logos go along with the phone's own backups and moves to a new phone.
+
+## Fonts
+
+The membership card lettering is [Copperplate CC](https://github.com/CowboyCollective/CopperplateCC), a free revival of
+Copperplate Gothic by indestructible type* for the Cowboy Collective, under the SIL Open Font License 1.1. Its license
+ships in the app at [`app/src/main/assets/licenses`](app/src/main/assets/licenses).
 
 ## Building
 

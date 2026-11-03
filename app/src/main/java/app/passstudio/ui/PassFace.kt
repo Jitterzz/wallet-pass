@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.passstudio.data.Catalog
+import app.passstudio.data.LogoStyle
 import app.passstudio.data.Pass
 import app.passstudio.data.PassTheme
 import com.google.mlkit.vision.barcode.common.Barcode
@@ -164,10 +165,11 @@ fun PassFace(pass: Pass, theme: PassTheme, modifier: Modifier = Modifier) {
             modifier = Modifier.matchParentSize(),
         )
         Column(Modifier.fillMaxWidth().padding(top = 22.dp, start = 24.dp, end = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            PassLogo(pass, 58.dp, DpSize(200.dp, 64.dp), ink, 26.sp)
-            Spacer(Modifier.height(8.dp))
-            Text(pass.title.ifBlank { "Card name" }, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Medium, shadow = shadow))
+            val logoScale = pass.logoSize.coerceIn(0.5f, 1.5f)
+            PassLogo(pass, 58.dp * logoScale, DpSize(minOf(200.dp * logoScale, 280.dp), 64.dp * logoScale), ink, 26.sp * logoScale)
+            Spacer(Modifier.height(if (pass.logoStyle == LogoStyle.BIG && pass.logo.isNotBlank()) 3.dp else 8.dp))
+            CardName(pass.title.ifBlank { "Card name" }, pass.titleColor, pass.executiveName(), ink,
+                TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Medium, shadow = shadow), moving = false, maxLines = 1)
             Text(pass.header.ifBlank { "Your name" }, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 style = TextStyle(fontSize = 26.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, shadow = shadow))
             if (pass.subheader.isNotBlank()) {

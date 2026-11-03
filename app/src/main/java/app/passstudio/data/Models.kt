@@ -36,6 +36,12 @@ data class Pass(
     val logoStyle: LogoStyle = LogoStyle.CIRCLE,
     /** A thin white line around a big logo, so it stands out on any theme. */
     val logoOutline: Boolean = true,
+    /** How big the logo shows, from half to one and a half times its usual size. */
+    val logoSize: Float = 1f,
+    /** The card name's color: "" for the usual (white or dark to suit the theme), "gold" or "silver" (shiny), or #rrggbb. */
+    val titleColor: String = "",
+    /** The card name's font: "executive" (a membership card's lettering), "plain", or "" for the first with gold or silver. */
+    val titleFont: String = "",
     // Look.
     val mode: LookMode = LookMode.AUTO,
     val fixedThemeId: String = "aurora",
@@ -114,6 +120,7 @@ object DataJson {
         .put("nearby", p.nearby).put("nearbyQuery", p.nearbyQuery)
         .put("links", JSONArray().apply { p.links.forEach { put(JSONObject().put("label", it.label).put("url", it.url)) } })
         .put("logo", p.logo).put("logoStyle", p.logoStyle.name).put("logoOutline", p.logoOutline)
+        .put("logoSize", p.logoSize.toDouble()).put("titleColor", p.titleColor).put("titleFont", p.titleFont)
         .put("mode", p.mode.name).put("fixedThemeId", p.fixedThemeId)
 
     private fun pass(o: JSONObject): Pass {
@@ -140,6 +147,9 @@ object DataJson {
             logo = o.optString("logo"),
             logoStyle = runCatching { LogoStyle.valueOf(o.optString("logoStyle", "CIRCLE")) }.getOrDefault(LogoStyle.CIRCLE),
             logoOutline = o.optBoolean("logoOutline", true),
+            logoSize = o.optDouble("logoSize", 1.0).toFloat().coerceIn(0.5f, 1.5f),
+            titleColor = o.optString("titleColor", ""),
+            titleFont = o.optString("titleFont", ""),
             mode = runCatching { LookMode.valueOf(o.optString("mode", "AUTO")) }.getOrDefault(LookMode.AUTO),
             fixedThemeId = o.optString("fixedThemeId", "aurora"),
         )
