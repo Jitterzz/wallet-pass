@@ -14,8 +14,9 @@ page and changes on its own for the seasons and holidays. No accounts or setup: 
   go by, fish swim, rain falls. (They hold still if that's turned off in Settings or the phone has animations off.)
   Tap the palette on a pass to pick one, or leave it on **Automatic** to have it change with the seasons and
   holidays. Pick which theme each holiday and season gets, or turn holidays off.
-- **Logos:** pick a picture on the phone (a see-through PNG works best). It's trimmed, centered in the circle at the
-  top of the pass, and kept on the phone.
+- **Logos:** pick a picture on the phone (a see-through PNG works best). Show it in the circle at the top of the pass,
+  or big on its own: its background is cut away and it gets a soft shadow (and a thin white line around it, if you
+  like) so it stands out on the art. It's kept on the phone.
 - **Quick access:** star a pass, then open it from the **quick settings tile**, a **home-screen shortcut**, the
   phone's **side button** (Settings > Advanced features > Side button > Double press > Open app > Pass Studio), or
   just by opening the app.

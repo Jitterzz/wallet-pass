@@ -12,6 +12,9 @@ data class PassLink(val label: String = "", val url: String = "")
 /** How a pass picks its theme: on its own with the seasons and holidays, or one theme that stays. */
 enum class LookMode { AUTO, FIXED }
 
+/** How the logo shows at the top of the pass: in a white circle, or big on its own, cut out of its background. */
+enum class LogoStyle { CIRCLE, BIG }
+
 data class Pass(
     val id: String,
     val title: String = "",
@@ -30,6 +33,9 @@ data class Pass(
     val links: List<PassLink> = emptyList(),
     /** The logo at the top of the pass: the name of its picture in the app's own storage (see [Logos]). */
     val logo: String = "",
+    val logoStyle: LogoStyle = LogoStyle.CIRCLE,
+    /** A thin white line around a big logo, so it stands out on any theme. */
+    val logoOutline: Boolean = true,
     // Look.
     val mode: LookMode = LookMode.AUTO,
     val fixedThemeId: String = "aurora",
@@ -107,7 +113,7 @@ object DataJson {
         .put("rows", JSONArray().apply { p.rows.forEach { put(JSONObject().put("label", it.label).put("value", it.value)) } })
         .put("nearby", p.nearby).put("nearbyQuery", p.nearbyQuery)
         .put("links", JSONArray().apply { p.links.forEach { put(JSONObject().put("label", it.label).put("url", it.url)) } })
-        .put("logo", p.logo)
+        .put("logo", p.logo).put("logoStyle", p.logoStyle.name).put("logoOutline", p.logoOutline)
         .put("mode", p.mode.name).put("fixedThemeId", p.fixedThemeId)
 
     private fun pass(o: JSONObject): Pass {
@@ -132,6 +138,8 @@ object DataJson {
             nearbyQuery = o.optString("nearbyQuery"),
             links = links,
             logo = o.optString("logo"),
+            logoStyle = runCatching { LogoStyle.valueOf(o.optString("logoStyle", "CIRCLE")) }.getOrDefault(LogoStyle.CIRCLE),
+            logoOutline = o.optBoolean("logoOutline", true),
             mode = runCatching { LookMode.valueOf(o.optString("mode", "AUTO")) }.getOrDefault(LookMode.AUTO),
             fixedThemeId = o.optString("fixedThemeId", "aurora"),
         )

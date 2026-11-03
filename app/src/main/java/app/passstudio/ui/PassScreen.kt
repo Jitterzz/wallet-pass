@@ -25,12 +25,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -65,7 +69,6 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
@@ -74,6 +77,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
@@ -83,6 +87,7 @@ import app.passstudio.PassTileService
 import app.passstudio.QuickAccess
 import app.passstudio.R
 import app.passstudio.data.Catalog
+import app.passstudio.data.LogoStyle
 import app.passstudio.data.Pass
 import app.passstudio.data.Store
 import java.net.URLEncoder
@@ -127,7 +132,6 @@ fun PassScreen(passId: String, onBack: () -> Unit, onEdit: () -> Unit, onSchedul
     // The barcode by itself on white, for the scanner (tap the barcode to open it).
     var scanning by remember { mutableStateOf(false) }
     val code = pass.barcodeValue.trim()
-    val screenHeight = LocalConfiguration.current.screenHeightDp
 
     fun open(url: String) {
         runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
@@ -143,126 +147,131 @@ fun PassScreen(passId: String, onBack: () -> Unit, onEdit: () -> Unit, onSchedul
             modifier = Modifier.fillMaxSize(),
         )
         if (!scanning) ThemeMotion(theme.art, Modifier.fillMaxSize())
-        Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding().navigationBarsPadding(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = ink)
-                }
-                Spacer(Modifier.weight(1f))
-                IconButton(onClick = {
-                    Store.update { it.copy(settings = it.settings.copy(quickPassId = if (starred) "" else pass.id)) }
-                    runCatching { TileService.requestListeningState(context, ComponentName(context, PassTileService::class.java)) }
-                    message = if (starred) "Unstarred." else "Starred. The quick settings tile and opening the app now go to this pass."
-                }) {
-                    Icon(
-                        painterResource(if (starred) R.drawable.ic_star else R.drawable.ic_star_outline),
-                        contentDescription = if (starred) "Starred pass" else "Star this pass",
-                        tint = ink,
-                    )
-                }
-                IconButton(onClick = { pickingTheme = true }) {
-                    Icon(painterResource(R.drawable.ic_palette), contentDescription = "Change theme", tint = ink)
-                }
-                IconButton(onClick = onEdit) { Icon(Icons.Filled.Edit, contentDescription = "Edit pass", tint = ink) }
-            }
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            // The pass fills the first screen, over the theme's scene; its details are further down, when you scroll.
+            val firstScreen = (maxHeight - WindowInsets.statusBars.asPaddingValues().calculateTopPadding()).coerceAtLeast(0.dp)
+            val screenWidth = maxWidth
+            Column(
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding().navigationBarsPadding(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Column(Modifier.fillMaxWidth().heightIn(min = firstScreen), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = ink)
+                        }
+                        Spacer(Modifier.weight(1f))
+                        IconButton(onClick = {
+                            Store.update { it.copy(settings = it.settings.copy(quickPassId = if (starred) "" else pass.id)) }
+                            runCatching { TileService.requestListeningState(context, ComponentName(context, PassTileService::class.java)) }
+                            message = if (starred) "Unstarred." else "Starred. The quick settings tile and opening the app now go to this pass."
+                        }) {
+                            Icon(
+                                painterResource(if (starred) R.drawable.ic_star else R.drawable.ic_star_outline),
+                                contentDescription = if (starred) "Starred pass" else "Star this pass",
+                                tint = ink,
+                            )
+                        }
+                        IconButton(onClick = { pickingTheme = true }) {
+                            Icon(painterResource(R.drawable.ic_palette), contentDescription = "Change theme", tint = ink)
+                        }
+                        IconButton(onClick = onEdit) { Icon(Icons.Filled.Edit, contentDescription = "Edit pass", tint = ink) }
+                    }
 
-            // Sized so everything fits above the scene at the bottom of the page.
-            Spacer(Modifier.height(8.dp))
-            RoundLogo(pass, 104.dp, ink, 46.sp)
-            Spacer(Modifier.height(16.dp))
-            Text(
-                pass.title.ifBlank { "My pass" },
-                color = ink,
-                style = TextStyle(fontSize = 19.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, shadow = shadow),
-                modifier = Modifier.padding(horizontal = 24.dp),
-            )
-            Spacer(Modifier.height(10.dp))
-            Text(
-                pass.header.ifBlank { pass.title.ifBlank { "My pass" } },
-                color = ink,
-                style = TextStyle(fontSize = 42.sp, lineHeight = 48.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
-                    shadow = shadow),
-                modifier = Modifier.padding(horizontal = 20.dp),
-            )
-            if (pass.subheader.isNotBlank()) {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    pass.subheader,
-                    color = ink,
-                    style = TextStyle(fontSize = 20.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, shadow = shadow),
-                )
-            }
-            if (code.isNotEmpty()) {
-                Spacer(Modifier.height(22.dp))
-                PageBarcode(pass) { scanning = true }
-                if (pass.showNumber) {
-                    Spacer(Modifier.height(12.dp))
+                    // Sized so everything fits above the scene at the bottom of the page.
+                    Spacer(Modifier.height(8.dp))
+                    PassLogo(pass, 104.dp, DpSize(screenWidth - 40.dp, 140.dp), ink, 46.sp)
+                    Spacer(Modifier.height(if (pass.logoStyle == LogoStyle.BIG) 10.dp else 16.dp))
                     Text(
-                        code,
+                        pass.title.ifBlank { "My pass" },
                         color = ink,
-                        style = TextStyle(fontSize = 19.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.5.sp, shadow = shadow),
+                        style = TextStyle(fontSize = 19.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, shadow = shadow),
+                        modifier = Modifier.padding(horizontal = 24.dp),
                     )
-                }
-            }
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        pass.header.ifBlank { pass.title.ifBlank { "My pass" } },
+                        color = ink,
+                        style = TextStyle(fontSize = 42.sp, lineHeight = 48.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
+                            shadow = shadow),
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                    )
+                    if (pass.subheader.isNotBlank()) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            pass.subheader,
+                            color = ink,
+                            style = TextStyle(fontSize = 20.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, shadow = shadow),
+                        )
+                    }
+                    if (code.isNotEmpty()) {
+                        Spacer(Modifier.height(22.dp))
+                        PageBarcode(pass) { scanning = true }
+                        if (pass.showNumber) {
+                            Spacer(Modifier.height(12.dp))
+                            Text(
+                                code,
+                                color = ink,
+                                style = TextStyle(fontSize = 19.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.5.sp, shadow = shadow),
+                            )
+                        }
+                    }
 
-            // Room for the scene at the bottom of the page; the details come up when you scroll.
-            Spacer(Modifier.height((screenHeight * 0.34f).dp))
-
-            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                val lines = buildList {
-                    if (pass.showIdRow && code.isNotEmpty()) add(pass.idRowLabel.ifBlank { "Member ID" } to code)
-                    pass.rows.filter { it.label.isNotBlank() && it.value.isNotBlank() }.forEach { add(it.label to it.value) }
                 }
-                lines.forEach { (label, value) ->
+
+                Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    val lines = buildList {
+                        if (pass.showIdRow && code.isNotEmpty()) add(pass.idRowLabel.ifBlank { "Member ID" } to code)
+                        pass.rows.filter { it.label.isNotBlank() && it.value.isNotBlank() }.forEach { add(it.label to it.value) }
+                    }
+                    lines.forEach { (label, value) ->
+                        Glass(darkArt) {
+                            Column(Modifier.padding(horizontal = 22.dp, vertical = 18.dp)) {
+                                Text(label, color = ink, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                                Text(value, color = ink, fontSize = 17.sp)
+                            }
+                        }
+                    }
+
+                    // Nearby locations (Google Maps) first, then website links: (is it the map link, label, link).
+                    val links = buildList {
+                        if (pass.nearby) {
+                            val q = pass.nearbyQuery.trim().ifBlank { pass.title.trim() }
+                            if (q.isNotEmpty()) add(Triple(true, "Nearby locations", "https://maps.google.com/?q=" + URLEncoder.encode(q, "UTF-8")))
+                        }
+                        pass.links.filter { it.url.trim().startsWith("http") }
+                            .forEach { add(Triple(false, it.label.ifBlank { "Website" }, it.url.trim())) }
+                    }
+                    if (links.isNotEmpty()) {
+                        Glass(darkArt) {
+                            links.forEachIndexed { i, (isMap, label, url) ->
+                                if (i > 0) Line(ink)
+                                PageRow(
+                                    if (isMap) rememberVectorPainter(Icons.Filled.Place) else painterResource(R.drawable.ic_globe),
+                                    label, ink,
+                                ) { open(url) }
+                            }
+                        }
+                    }
+
                     Glass(darkArt) {
-                        Column(Modifier.padding(horizontal = 22.dp, vertical = 18.dp)) {
-                            Text(label, color = ink, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-                            Text(value, color = ink, fontSize = 17.sp)
+                        PageRow(painterResource(R.drawable.ic_palette), "Change theme", ink) { pickingTheme = true }
+                        Line(ink)
+                        PageRow(rememberVectorPainter(Icons.Filled.Edit), "Edit pass", ink, onEdit)
+                    }
+
+                    Glass(darkArt) {
+                        PageRow(painterResource(R.drawable.ic_tile), "Add quick settings tile", ink) {
+                            QuickAccess.requestTile(context) { message = it }
+                        }
+                        Line(ink)
+                        PageRow(rememberVectorPainter(Icons.Filled.Home), "Add to home screen", ink) {
+                            if (!QuickAccess.pinShortcut(context, pass)) message = "Your home screen doesn't take shortcuts."
                         }
                     }
                 }
-
-                // Nearby locations (Google Maps) first, then website links: (is it the map link, label, link).
-                val links = buildList {
-                    if (pass.nearby) {
-                        val q = pass.nearbyQuery.trim().ifBlank { pass.title.trim() }
-                        if (q.isNotEmpty()) add(Triple(true, "Nearby locations", "https://maps.google.com/?q=" + URLEncoder.encode(q, "UTF-8")))
-                    }
-                    pass.links.filter { it.url.trim().startsWith("http") }
-                        .forEach { add(Triple(false, it.label.ifBlank { "Website" }, it.url.trim())) }
-                }
-                if (links.isNotEmpty()) {
-                    Glass(darkArt) {
-                        links.forEachIndexed { i, (isMap, label, url) ->
-                            if (i > 0) Line(ink)
-                            PageRow(
-                                if (isMap) rememberVectorPainter(Icons.Filled.Place) else painterResource(R.drawable.ic_globe),
-                                label, ink,
-                            ) { open(url) }
-                        }
-                    }
-                }
-
-                Glass(darkArt) {
-                    PageRow(painterResource(R.drawable.ic_palette), "Change theme", ink) { pickingTheme = true }
-                    Line(ink)
-                    PageRow(rememberVectorPainter(Icons.Filled.Edit), "Edit pass", ink, onEdit)
-                }
-
-                Glass(darkArt) {
-                    PageRow(painterResource(R.drawable.ic_tile), "Add quick settings tile", ink) {
-                        QuickAccess.requestTile(context) { message = it }
-                    }
-                    Line(ink)
-                    PageRow(rememberVectorPainter(Icons.Filled.Home), "Add to home screen", ink) {
-                        if (!QuickAccess.pinShortcut(context, pass)) message = "Your home screen doesn't take shortcuts."
-                    }
-                }
+                Spacer(Modifier.height(28.dp))
             }
-            Spacer(Modifier.height(28.dp))
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
         AnimatedVisibility(scanning, enter = fadeIn(tween(160)), exit = fadeOut(tween(160))) {

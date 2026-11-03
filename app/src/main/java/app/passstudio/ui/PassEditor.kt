@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -54,15 +55,20 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.passstudio.R
+import app.passstudio.data.Catalog
 import app.passstudio.data.DetailRow
+import app.passstudio.data.LogoStyle
 import app.passstudio.data.LookMode
 import app.passstudio.data.Pass
 import app.passstudio.data.PassLink
@@ -88,7 +94,7 @@ fun PassEditor(passId: String, onBack: () -> Unit, onSchedule: () -> Unit) {
     var confirmDelete by remember { mutableStateOf(false) }
     var savingLogo by remember { mutableStateOf(false) }
 
-    // Picking a logo: it's fitted to the round spot and kept on the phone.
+    // Picking a logo: it's kept on the phone, fitted to the circle and cut out for showing big.
     val logoPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             savingLogo = true
@@ -238,12 +244,18 @@ fun PassEditor(passId: String, onBack: () -> Unit, onSchedule: () -> Unit) {
             SectionTitle("Logo")
             Panel {
                 Text(
-                    "A picture for the circle at the top of the pass, like a store's logo. A see-through PNG works best: " +
-                        "it's trimmed and centered on white for you. Only use a logo you have the right to use.",
+                    "A picture for the top of the pass, like a store's logo: in a white circle, or big on its own with its " +
+                        "background cut away. A see-through PNG works best. Only use a logo you have the right to use.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    if (draft.logo.isNotBlank()) RoundLogo(draft, 56.dp, MaterialTheme.colorScheme.onSurface, 22.sp)
+                    if (draft.logo.isNotBlank()) {
+                        // The logo the way the pass shows it, on this pass's theme color.
+                        val sky = parseHex(Catalog.skyColor(theme.art)) ?: Color(0xFF1A1A1A)
+                        Box(Modifier.clip(RoundedCornerShape(14.dp)).background(sky).padding(8.dp), contentAlignment = Alignment.Center) {
+                            PassLogo(draft, 56.dp, DpSize(120.dp, 56.dp), inkOn(sky), 22.sp)
+                        }
+                    }
                     FilledTonalButton(onClick = { logoPicker.launch(arrayOf("image/*")) }, enabled = !savingLogo) {
                         Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
@@ -253,6 +265,34 @@ fun PassEditor(passId: String, onBack: () -> Unit, onSchedule: () -> Unit) {
                         CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                     } else if (draft.logo.isNotBlank()) {
                         TextButton(onClick = { draft = draft.copy(logo = "") }) { Text("Remove") }
+                    }
+                }
+                if (draft.logo.isNotBlank()) {
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                        SegmentedButton(
+                            selected = draft.logoStyle == LogoStyle.CIRCLE,
+                            onClick = { draft = draft.copy(logoStyle = LogoStyle.CIRCLE) },
+                            shape = SegmentedButtonDefaults.itemShape(0, 2),
+                        ) { Text("In a circle") }
+                        SegmentedButton(
+                            selected = draft.logoStyle == LogoStyle.BIG,
+                            onClick = { draft = draft.copy(logoStyle = LogoStyle.BIG) },
+                            shape = SegmentedButtonDefaults.itemShape(1, 2),
+                        ) { Text("Big") }
+                    }
+                    if (draft.logoStyle == LogoStyle.BIG) {
+                        val hasBig = remember(draft.logo) { Logos.hasBig(context, draft.logo) }
+                        if (hasBig) {
+                            SwitchRow("White line", "A thin white line around the logo, so it stands out on any theme.", draft.logoOutline) {
+                                draft = draft.copy(logoOutline = it)
+                            }
+                        } else {
+                            Text(
+                                "Pick the picture again to show this logo big. Logos picked before this update were only kept " +
+                                    "for the circle.",
+                                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error,
+                            )
+                        }
                     }
                 }
             }

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -35,6 +36,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,10 +49,12 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import app.passstudio.data.Catalog
 import app.passstudio.data.PassTheme
+import app.passstudio.data.LogoStyle
 import app.passstudio.data.Logos
 import app.passstudio.data.Pass
 import kotlinx.coroutines.Dispatchers
@@ -232,6 +236,35 @@ fun rememberLogo(name: String): ImageBitmap? {
         }
     }
     return image
+}
+
+/**
+ * The logo at the top of a pass, the way the pass shows it: in its white circle ([circle] across), or big on its own,
+ * as large as fits in [big]. A logo kept before there were big versions shows in its circle.
+ */
+@Composable
+fun PassLogo(pass: Pass, circle: Dp, big: DpSize, ink: Color, letterSize: TextUnit, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    // The big picture's name and its width over height, if this pass shows its logo big and the picture is there.
+    val bigLogo = remember(pass.logo, pass.logoStyle, pass.logoOutline) {
+        if (pass.logoStyle != LogoStyle.BIG || !Logos.hasBig(context, pass.logo)) null
+        else Logos.bigName(pass.logo, pass.logoOutline).let { name ->
+            Logos.size(context, name)?.let { (w, h) -> name to w.toFloat() / h }
+        }
+    }
+    if (bigLogo == null) {
+        RoundLogo(pass, circle, ink, letterSize, modifier)
+        return
+    }
+    val (name, ratio) = bigLogo
+    val width = if (ratio >= big.width / big.height) big.width else big.height * ratio
+    val height = width / ratio
+    val image = rememberLogo(name)
+    if (image != null) {
+        Image(image, contentDescription = "Logo", contentScale = ContentScale.Fit, modifier = modifier.size(width, height))
+    } else {
+        Spacer(modifier.size(width, height))
+    }
 }
 
 /** A logo in its white circle, or the card name's first letter when there's no logo. */

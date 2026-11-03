@@ -41,6 +41,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.passstudio.data.Catalog
@@ -163,7 +164,7 @@ fun PassFace(pass: Pass, theme: PassTheme, modifier: Modifier = Modifier) {
             modifier = Modifier.matchParentSize(),
         )
         Column(Modifier.fillMaxWidth().padding(top = 22.dp, start = 24.dp, end = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            RoundLogo(pass, 58.dp, ink, 26.sp)
+            PassLogo(pass, 58.dp, DpSize(200.dp, 64.dp), ink, 26.sp)
             Spacer(Modifier.height(8.dp))
             Text(pass.title.ifBlank { "Card name" }, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Medium, shadow = shadow))
