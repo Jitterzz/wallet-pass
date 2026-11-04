@@ -52,9 +52,9 @@ object ThemeAnchors {
     fun of(art: String, kind: String): FloatArray = all[art]?.get(kind) ?: empty
 
     private fun thanksgiving(): Map<String, FloatArray> = mapOf(
-            "smoke" to floatArrayOf(815.0f, 1795.0f, 1.0f),
-            "sun" to floatArrayOf(690.0f, 1858.0f, 74.0f),
-            "window" to floatArrayOf(738.5f, 1879.7f, 27.0f, 801.5f, 1879.7f, 27.0f),
+            "smoke" to floatArrayOf(207.6f, 1864.4f, 1.0f),
+            "sun" to floatArrayOf(456.0f, 1906.0f, 94.0f),
+            "window" to floatArrayOf(140.3f, 1941.6f, 23.8f, 195.7f, 1941.6f, 23.8f, 818.0f, 1850.0f, 22.0f),
         )
 
     private fun halloween(): Map<String, FloatArray> = mapOf(

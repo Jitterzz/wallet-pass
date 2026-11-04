@@ -10,7 +10,7 @@ object Catalog {
         // Holidays.
         PassTheme("halloween", "Halloween", "#0d0820", "halloween", true),
         PassTheme("dia_de_muertos", "Día de los Muertos", "#1a0828", "dia_de_muertos", true),
-        PassTheme("thanksgiving", "Thanksgiving", "#24132f", "thanksgiving", true),
+        PassTheme("thanksgiving", "Thanksgiving", "#1b1236", "thanksgiving", true),
         PassTheme("christmas", "Christmas", "#050c1f", "christmas", true),
         PassTheme("new_year", "New Year's", "#03050f", "new_year", true),
         PassTheme("valentines", "Valentine's Day", "#fff0f5", "valentines", true),

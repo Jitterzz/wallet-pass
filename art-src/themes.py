@@ -18,76 +18,81 @@ AUTUMN = [("#8f2a1c", "#c8462a", "#ea6a45"), ("#b9531f", "#e07b2a", "#f6a94a"), 
 LEAVES = ["#c8462a", "#e07b2a", "#b5341f", "#f0a43a", "#d9622a", "#a8321c"]
 
 
-# ======================= Thanksgiving: a harvest at golden hour =======================
-@theme("thanksgiving", [(0, "#24132f"), (0.5, "#4a1e3c"), (0.82, "#82303f"), (1, "#a8443d")])
+# ======================= Thanksgiving: a turkey among the harvest at sundown =======================
+@theme("thanksgiving", [(0, "#1b1236"), (0.42, "#4b1d45"), (0.7, "#9a3448"), (0.9, "#d9643f"), (1, "#f0913f")])
 class Thanksgiving:
     @staticmethod
     def deco(s):
-        stars_top_safe(s, 36, 760, "#ffe6c9", 0.06)
-        for _ in range(34):
-            p = spot(s.r, TOP_CLEAR + 30, BAND_Y + 60, 26)
-            if p:
-                maple(s, p[0], p[1], s.r.uniform(13, 26), s.r.choice(LEAVES), s.r.uniform(0, 360), s.r.uniform(0.75, 1))
-        geese(s, 858, 560, 5, 0.95, "#1d0f22", 0.75, 30)
-        long_cloud(s, 120, 1180, 300, 50, "#b5485a", None, 0.55)
-        long_cloud(s, 930, 1290, 280, 44, "#c4584f", None, 0.6)
+        stars_top_safe(s, 44, 820, "#ffe9c9", 0.08)
+        long_cloud(s, 110, 1190, 290, 44, "#c4515c", None, 0.5)
+        long_cloud(s, 940, 1268, 250, 38, "#dc6a4e", None, 0.55)
         with Front(s):
-            for _ in range(8):
-                x, y = edge(s.r, BAND_Y - 40, BAND_Y + 180, 0.0)
-                maple(s, x, y, s.r.uniform(16, 26), s.r.choice(LEAVES), s.r.uniform(0, 360))
+            for _ in range(7):
+                x, y = edge(s.r, BAND_Y - 60, BAND_Y + 150, 0.0)
+                maple(s, x, y, s.r.uniform(15, 24), s.r.choice(LEAVES), s.r.uniform(0, 360))
 
     @staticmethod
     def scene(s):
-        s.sky("#a8443d", "#cf5f3a", "#ee8c3e", "#ffc76a", "#ffd98c")
-        s.sun(690, 478, 74, "#fff6d6", "#ffd27a", "#ffc46b", 0.75)
-        rays(s, 690, 478, 560, "#ffe7b0", 14, 0.22, 0.05)
-        long_cloud(s, 250, 250, 420, 60, "#f39a6a", "#c9566a", 0.75)
-        long_cloud(s, 800, 330, 380, 46, "#ffb877", "#e0745e", 0.7)
-        long_cloud(s, 480, 140, 300, 40, "#e2766a", "#b54c64", 0.55)
-        geese(s, 300, 240, 9, 1.15, "#3a1620", 0.8, 34)
-        # far hills, hazy in the evening light
-        hill(s, 505, 22, 0.9, 0.4, "#a4505e", "#8a3f55")
-        for x in range(30, SW, 26):
-            y = s.ridge_y(505, 22, 0.9, 0.4, x) + 6
-            if s.r.random() < 0.55:
-                s.add(f'<ellipse cx="{x:.0f}" cy="{y - 9:.0f}" rx="{s.r.uniform(8, 13):.0f}" ry="{s.r.uniform(10, 16):.0f}" '
-                      f'fill="#7d3550" opacity="0.8"/>')
-        hill(s, 560, 26, 0.7, 2.2, "#a4462f", "#7a3120")
-        # the farmhouse, home for dinner
-        hx = 770
-        hb = s.ridge_y(560, 26, 0.7, 2.2, hx) + 14
-        house(s, hx, hb, 150, 92, "#efdcbc", "#6a2a2a", "#ffcf6a", True, "#6a3a24", True, True, False, "#fff5e0",
+        s.sky("#f0913f", "#f5a650", "#fabd62", "#ffd27e", "#ffe3a2")
+        # the sun going down behind the hills, its light fanning across the sky
+        s.sun(456, 526, 94, "#fff8dc", "#ffd77a", "#ffc46b", 0.72)
+        rays(s, 456, 526, 640, "#fff0c4", 16, 0.18, 0.045)
+        long_cloud(s, 600, 286, 430, 40, "#ffc195", "#e5806a", 0.8)
+        long_cloud(s, 170, 214, 300, 34, "#ffcc9a", "#ea9068", 0.7)
+        long_cloud(s, 880, 372, 250, 30, "#ffd6a2", "#f0a070", 0.75)
+        long_cloud(s, 360, 420, 230, 22, "#ffe1b0", "#f5b07c", 0.6)
+        geese(s, 700, 190, 7, 1.0, "#5a2a26", 0.75, 30)
+        # far hills in the haze, a line of trees along them
+        hill(s, 548, 22, 1.1, 0.6, "#eba774", "#dd9064")
+        for x in range(10, SW, 22):
+            y = s.ridge_y(548, 22, 1.1, 0.6, x) + 6
+            if s.r.random() < 0.6:
+                s.add(f'<ellipse cx="{x:.0f}" cy="{y - 8:.0f}" rx="{s.r.uniform(8, 12):.0f}" ry="{s.r.uniform(9, 15):.0f}" '
+                      f'fill="#cf7e56" opacity="0.85"/>')
+        hill(s, 598, 28, 0.8, 2.0, "#c96c43", "#a9532f")
+        # the farmhouse on the hill, home for dinner, its chimney going
+        fx = 168
+        fb = s.ridge_y(598, 28, 0.8, 2.0, fx) + 12
+        leafy_tree(s, fx - 106, fb + 6, 150, AUTUMN[1], "#4a2a1a")
+        house(s, fx, fb, 132, 84, "#f1e2c4", "#7a2a24", "#ffcf6a", True, "#6a3a24", True, True, False, "#fff5e0",
               shade="#8a5a3a")
-        leafy_tree(s, 905, hb + 6, 190, AUTUMN[0], "#4a2a1a")
-        leafy_tree(s, 640, s.ridge_y(560, 26, 0.7, 2.2, 640) + 14, 130, AUTUMN[2], "#4a2a1a")
-        leafy_tree(s, 330, s.ridge_y(560, 26, 0.7, 2.2, 330) + 14, 150, AUTUMN[1], "#4a2a1a")
-        leafy_tree(s, 130, s.ridge_y(560, 26, 0.7, 2.2, 130) + 18, 230, AUTUMN[0], "#4a2a1a", -6)
-        leafy_tree(s, 230, s.ridge_y(560, 26, 0.7, 2.2, 230) + 18, 170, AUTUMN[2], "#4a2a1a")
-        # field rows and the fence
-        hill(s, 640, 14, 0.5, 1.0, "#8a3e1f", "#6b2c15")
+        leafy_tree(s, fx + 104, fb + 8, 120, AUTUMN[2], "#4a2a1a")
+        # the red barn and its silo
+        bx = 818
+        bb = s.ridge_y(598, 28, 0.8, 2.0, bx) + 14
+        silo(s, bx + 130, bb + 2, 0.9)
+        barn(s, bx, bb, 0.78)
+        anchor(s, "window", bx, bb - 150 * 0.78 - 33 * 0.78, 22)
+        s.glow(bx, bb - 150 * 0.78 - 33 * 0.78, 30, "#ffcf6a", 0.5)
+        s.add(f'<rect x="{bx - 13}" y="{bb - 150 * 0.78 - 43 * 0.78:.1f}" width="26" height="{24 * 0.78:.1f}" fill="#ffcf6a"/>')
+        leafy_tree(s, bx - 148, bb + 8, 170, AUTUMN[0], "#4a2a1a")
+        # golden fields in rows, and the fence along them
+        hill(s, 664, 16, 0.6, 1.2, "#b9662e", "#904a20")
         for k in range(7):
-            y = 660 + k * 22
-            s.add(f'<path d="M-20,{y} Q{SW / 2},{y - 30 + k * 2} {SW + 20},{y}" fill="none" stroke="#a24f26" '
-                  f'stroke-width="5" opacity="0.5"/>')
-        fence(s, -10, SW + 10, 676, "#5a3018", 50, 44, "#3a1d0e")
-        # the harvest out front
-        hill(s, 748, 12, 0.6, 3.1, "#6e3218", "#4a200f")
-        tufts(s, 748, 12, 0.6, 3.1, "#a85f2a", 70, (10, 20))
-        corn_shock(s, 92, 840, 300)
-        corn_shock(s, 960, 846, 260)
-        hay_bale(s, 175, 840, 62)
-        hay_bale(s, 800, 846, 52)
-        cornucopia(s, 548, 846, 272)
-        pumpkin2(s, 275, 852, 46)
-        pumpkin2(s, 345, 858, 30, "#d8cdb2", "#f1e8d4", "#6b6b3a")
-        gourd(s, 700, 852, 20, "#5d7f3a", "#7fa04a", "#e8e0b0")
-        pumpkin2(s, 880, 856, 38, "#c9561d", "#ea8a34")
-        gourd(s, 930, 858, 16, "#e8b23a", "#f5d06a", None, 1.4)
-        for _ in range(14):
-            maple(s, s.r.uniform(20, SW - 20), s.r.uniform(60, 470), s.r.uniform(10, 18), s.r.choice(LEAVES),
-                  s.r.uniform(0, 360), 0.9)
-        for _ in range(20):
-            maple(s, s.r.uniform(0, SW), s.r.uniform(800, 860), s.r.uniform(9, 14), s.r.choice(LEAVES), s.r.uniform(0, 360))
+            y = 676 + k * 21
+            s.add(f'<path d="M-20,{y} Q{SW / 2},{y - 28 + k * 2} {SW + 20},{y}" fill="none" stroke="#e2a548" '
+                  f'stroke-width="6" opacity="0.45"/>')
+        fence(s, -10, SW + 10, 690, "#5a3018", 46, 44, "#3a1d0e")
+        # the ground out front, leaves on it
+        hill(s, 772, 12, 0.6, 3.1, "#7a3a1a", "#532510")
+        tufts(s, 772, 12, 0.6, 3.1, "#b06a2c", 70, (10, 20))
+        # sunflowers at the edge, pumpkins and squash, the turkey, apples and hay
+        sunflower(s, 30, 858, 290)
+        sunflower(s, 996, 858, 268)
+        hay_bale(s, 766, 852, 62)
+        hay_bale(s, 872, 856, 56)
+        for ex, rot in ((918, -14), (946, -2), (974, 11)):
+            indian_corn(s, ex, 690 + abs(rot) * 0.6, 112, rot)
+        leaf_pile(s, 236, 860, 150, LEAVES)
+        turkey(s, 372, 846, 0.92)
+        pumpkin2(s, 122, 852, 46)
+        gourd(s, 184, 857, 24, "#f2ead6", "#fffaf0", None, 1.0)
+        apple_basket(s, 600, 852, 124)
+        pumpkin2(s, 704, 856, 56)
+        gourd(s, 758, 858, 22, "#3f7a3a", "#5a9a48", "#d6e3a0", 1.35)
+        pumpkin2(s, 818, 860, 34, "#e07a1c", "#f6a84a")
+        gourd(s, 952, 858, 28, "#e9c23a", "#f6dd72", None, 1.1)
+        pumpkin2(s, 1006, 860, 38)
 
 
 def scatter(s, n, y0, y1, pad, draw, center=0.08):

@@ -785,13 +785,14 @@ object Motions {
         val sideSkies = arrayOf(floatArrayOf(40f, 320f, 230f, 520f, 0.6f), floatArrayOf(802f, 320f, 992f, 520f, 0.6f))
         return when (art) {
             "thanksgiving" -> listOf(
-                sunRays(a("sun"), 0xFFFFE2A0),
+                twinkle(26, SKY_TOP, 820f, 0xFFFFE9C9, 11f, 4),
+                sunRays(a("sun"), 0xFFFFE8B0),
                 pulse(a("sun"), 0xFFFFD27A, 3.6f, 0.45f),
                 smoke(a("smoke")),
                 flicker(a("window"), WARM, 3f, 0.6f, 0.5f),
-                geese(1610f, 0xFF3A1620, 3, 14f),
-                geese(560f, 0xFF1D0F22, 4, 19f),
-                fall(Piece.MAPLE, 44, 105f, 70f, 26f..50f, LEAVES, 1),
+                geese(1570f, 0xFF5A2A26, 3, 16f),
+                geese(600f, 0xFF2A1430, 4, 23f),
+                fall(Piece.MAPLE, 28, 90f, 70f, 24f..44f, LEAVES, 1),
             )
             "halloween" -> listOf(
                 twinkle(40, SKY_TOP, BAND + 300f, 0xFFFFFFFF, 14f, 2),

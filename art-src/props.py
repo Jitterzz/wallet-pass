@@ -1358,3 +1358,113 @@ def shopping_bag(s, x, base, w, h, color, handle="#ffffff"):
           f'{x + w * 0.25},{base - h}" stroke="{handle}" stroke-width="{w * 0.06:.1f}" fill="none"/>')
     s.add(f'<path d="M{x - w / 2},{base - h} H{x + w / 2} L{x + w * 0.46},{base} H{x - w * 0.46}Z" fill="{color}"/>')
     s.add(f'<path d="M{x + w * 0.1},{base - h} H{x + w / 2} L{x + w * 0.46},{base} H{x + w * 0.06}Z" fill="#000000" opacity="0.1"/>')
+
+
+# ---------- Thanksgiving ----------
+def turkey(s, x, base, k, facing=1):
+    """A proud turkey with its tail fanned out: rings of cream-tipped, orange, rust and bronze feathers behind a plump
+    bronze body, a barred wing, a pale blue head with its red snood and wattle, and orange legs."""
+    g = []
+    px, py = -28, -150          # where the tail feathers fan out from, behind the body
+    rings = [  # length, width, color, its darker edge
+        (182, 40, "#f2d9a2", "#d6b06c"),
+        (162, 36, "#e48b34", "#c2691f"),
+        (138, 32, "#b4462a", "#8e3219"),
+        (112, 28, "#6a3518", "#4b230e"),
+    ]
+    for ri, (length, width, c, edge) in enumerate(rings):
+        n = 17 - ri
+        for i in range(n):
+            a = -172 + 164 * i / (n - 1)
+            ar = math.radians(a)
+            cx, cy = px + math.cos(ar) * length * 0.52, py + math.sin(ar) * length * 0.52
+            g.append(f'<ellipse cx="{cx:.1f}" cy="{cy:.1f}" rx="{length * 0.52:.1f}" ry="{width / 2:.1f}" fill="{c}" '
+                     f'stroke="{edge}" stroke-width="2.2" transform="rotate({a:.1f} {cx:.1f} {cy:.1f})"/>')
+            if ri == 0:
+                # the feather's quill, out to its cream tip
+                tx, ty = px + math.cos(ar) * length * 0.98, py + math.sin(ar) * length * 0.98
+                g.append(f'<path d="M{px + math.cos(ar) * length * 0.62:.1f},{py + math.sin(ar) * length * 0.62:.1f} '
+                         f'L{tx:.1f},{ty:.1f}" stroke="#c99a55" stroke-width="2" opacity="0.7"/>')
+        if ri == 1:
+            # a dark bar across the orange feathers, the way a turkey's tail is banded
+            for i in range(n):
+                a = math.radians(-172 + 164 * i / (n - 1))
+                bx, by = px + math.cos(a) * length * 0.86, py + math.sin(a) * length * 0.86
+                g.append(f'<ellipse cx="{bx:.1f}" cy="{by:.1f}" rx="6" ry="{width * 0.36:.1f}" fill="#4b230e" opacity="0.55" '
+                         f'transform="rotate({math.degrees(a):.1f} {bx:.1f} {by:.1f})"/>')
+    # legs and feet
+    for lx in (-12, 26):
+        g.append(f'<path d="M{lx},-70 L{lx + 4},-8" stroke="#d9773a" stroke-width="9" stroke-linecap="round"/>')
+        g.append(f'<path d="M{lx + 4},-6 l-16,6 M{lx + 4},-6 l4,8 M{lx + 4},-6 l18,5" stroke="#d9773a" stroke-width="6" '
+                 f'stroke-linecap="round"/>')
+    # the body, plump and bronze, lit from the upper left
+    body = s.rad([(0, "#9a5a2c", 1), (0.55, "#6e3819", 1), (1, "#4a230e", 1)], 0, 0, 1)
+    gid = s.id("tb")
+    s.defs.append(f'<radialGradient id="{gid}" cx="0.38" cy="0.32" r="0.75"><stop offset="0" stop-color="#a5622f"/>'
+                  f'<stop offset="0.6" stop-color="#703a1a"/><stop offset="1" stop-color="#4a230e"/></radialGradient>')
+    g.append(f'<path d="M-62,-128 C-66,-176 -22,-206 22,-198 C66,-190 84,-150 78,-112 C72,-76 40,-58 6,-58 '
+             f'C-34,-58 -58,-86 -62,-128Z" fill="url(#{gid})"/>')
+    # breast feathers: rows of little scallops
+    for row in range(4):
+        for j in range(5 - (row > 1)):
+            sx = 18 + j * 13 - row * 4
+            sy = -150 + row * 18
+            g.append(f'<path d="M{sx - 7},{sy} q7,9 14,0" stroke="#b8743a" stroke-width="2.4" fill="none" opacity="0.75"/>')
+    # the wing, barred at its end
+    g.append(f'<path d="M-46,-140 C-30,-168 18,-160 30,-130 C38,-108 20,-86 -6,-84 C-34,-82 -56,-110 -46,-140Z" fill="#53290f"/>')
+    for j in range(4):
+        wx = -34 + j * 11
+        g.append(f'<path d="M{wx},-110 q4,14 2,26" stroke="#e7c98a" stroke-width="3.2" fill="none" stroke-linecap="round" opacity="0.85"/>')
+    g.append(f'<path d="M-40,-146 C-22,-160 10,-156 22,-138" stroke="#8a4c22" stroke-width="3" fill="none" opacity="0.8"/>')
+    # neck and head
+    g.append(f'<path d="M40,-176 C46,-206 50,-226 58,-246" stroke="#5a2b12" stroke-width="30" stroke-linecap="round" fill="none"/>')
+    g.append(f'<path d="M52,-214 C55,-230 58,-240 63,-252" stroke="#bcd0e6" stroke-width="20" stroke-linecap="round" fill="none"/>')
+    g.append(f'<circle cx="66" cy="-258" r="19" fill="#d6e3f0"/>')
+    g.append(f'<path d="M80,-262 L100,-255 L80,-249Z" fill="#f2b33d"/>')
+    g.append(f'<path d="M80,-258 L100,-255" stroke="#c98a20" stroke-width="1.5"/>')
+    # the snood over the beak, and the wattle under the chin
+    g.append(f'<path d="M76,-270 C86,-268 92,-256 90,-238 C89,-230 82,-230 82,-238 C83,-250 80,-258 74,-262Z" fill="#d8342c"/>')
+    g.append(f'<path d="M70,-246 C80,-240 82,-222 74,-212 C68,-206 60,-212 62,-222 C64,-232 64,-240 70,-246Z" fill="#c8282a"/>')
+    g.append(f'<circle cx="68" cy="-263" r="4.6" fill="#1b120c"/><circle cx="69.6" cy="-264.6" r="1.6" fill="#ffffff"/>')
+    s.add(f'<g transform="translate({x},{base}) scale({facing * k},{k})">{"".join(g)}</g>')
+
+
+def indian_corn(s, x, y, length, rot, colors=("#c8342a", "#e9b23a", "#6b2a6a", "#f2e2b0", "#d9622a")):
+    """An ear of flint corn, its kernels many colors, hanging from its pale husks pulled back."""
+    g = []
+    w = length * 0.3
+    for side in (-1, 1):
+        g.append(f'<path d="M0,{length * 0.06:.1f} C{side * w * 0.95},{-length * 0.04} {side * w * 1.05},{-length * 0.28} {side * w * 0.45},{-length * 0.42} '
+                 f'C{side * w * 0.6},{-length * 0.24} {side * w * 0.35},{-length * 0.08} 0,{length * 0.06:.1f}Z" fill="#ead8a8" stroke="#c9b27a" stroke-width="1.5"/>')
+    g.append(f'<path d="M0,0 C{-w * 0.25},{-length * 0.2} {w * 0.25},{-length * 0.34} {w * 0.08},{-length * 0.48}" stroke="#d9c48e" stroke-width="4" fill="none"/>')
+    g.append(f'<ellipse cx="0" cy="{length * 0.5:.1f}" rx="{w / 2:.1f}" ry="{length / 2:.1f}" fill="#5a2a1a"/>')
+    rows, cols = 12, 5
+    for i in range(rows):
+        t = (i + 0.5) / rows
+        yy = length * t
+        half = w / 2 * math.sin(math.pi * min(0.98, t * 0.96 + 0.03)) * 0.92
+        for j in range(cols):
+            xx = -half + 2 * half * (j + 0.5) / cols
+            g.append(f'<circle cx="{xx:.1f}" cy="{yy:.1f}" r="{w * 0.1:.1f}" fill="{s.r.choice(colors)}"/>')
+    g.append(f'<ellipse cx="{-w * 0.12:.1f}" cy="{length * 0.42:.1f}" rx="{w * 0.12:.1f}" ry="{length * 0.3:.1f}" fill="#ffffff" opacity="0.18"/>')
+    s.add(f'<g transform="translate({x},{y}) rotate({rot})">{"".join(g)}</g>')
+
+
+def apple_basket(s, x, base, w):
+    """A woven basket heaped with red and gold apples."""
+    h = w * 0.5
+    for i in range(7):
+        ax = x - w * 0.36 + i * w * 0.12
+        ay = base - h - w * 0.05 - (0.08 * w if i in (2, 3, 4) else 0) + s.r.uniform(-3, 3)
+        c, hi = (("#c8312a", "#f0675c"), ("#a8221f", "#e0524a"), ("#e0a32a", "#f6d06a"))[i % 3]
+        apple(s, ax, ay, w * 0.1, c, hi)
+    for i in range(3):
+        apple(s, x - w * 0.18 + i * w * 0.18, base - h - w * 0.17, w * 0.1, "#b8281f", "#ec5f55")
+    s.add(f'<path d="M{x - w * 0.5},{base - h} H{x + w * 0.5} L{x + w * 0.4},{base} H{x - w * 0.4}Z" fill="#b97a3e"/>')
+    for kk in range(5):
+        yy = base - h + kk * h / 5 + 5
+        s.add(f'<path d="M{x - w * 0.48 + kk * 2.2},{yy:.1f} H{x + w * 0.48 - kk * 2.2}" stroke="#8f5a28" stroke-width="3"/>')
+    for kk in range(10):
+        xx = x - w * 0.46 + kk * w * 0.102
+        s.add(f'<path d="M{xx:.1f},{base - h} L{x + (xx - x) * 0.84:.1f},{base}" stroke="#8f5a28" stroke-width="2.4"/>')
+    s.add(f'<rect x="{x - w * 0.52}" y="{base - h - 4}" width="{w * 1.04}" height="9" rx="4" fill="#a86a32"/>')
